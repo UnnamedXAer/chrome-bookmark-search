@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Bookmark Search",
+  "version": "0.0.4",
+  "permissions": ["activeTab", "scripting", "bookmarks", "tabs"],
+  "background": {
+    "service_worker": "service-worker.js"
+  },
+  "action": {
+    "default_title": "Search Bookmark",
+    "default_popup": "popup/popup.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+M"
+      },
+      "description": "Open Search Box"
+    },
+    "my-custom-action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+S"
+      },
+      "description": "Custom action - handle it in onCommand listener"
+    }
+  }
+}

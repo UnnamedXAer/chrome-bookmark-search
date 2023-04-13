@@ -1,0 +1,12 @@
+lockfileVersion: '6.0'
+
+devDependencies:
+  chrome-types:
+    specifier: ^0.1.185
+    version: 0.1.185
+
+packages:
+
+  /chrome-types@0.1.185:
+    resolution: {integrity: sha512-S+n7VftaNqARdzO+nKpj8HU+02SbO49SOXUg1ENAoIJaIv42CPAC9rNm4Bc7OyK5KMH2Q+XDZJdUwWNNU1urWQ==}
+    dev: true

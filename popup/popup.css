@@ -1,0 +1,7 @@
+form {
+  background-color: aliceblue;
+  padding: 1rem;
+  border: 1px solid gray;
+  min-height: 200px;
+  max-height: 500px;
+}
