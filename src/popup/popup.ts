@@ -1,4 +1,4 @@
-//--/ <reference types="chrome-types" />
+let filterIdleCallbackReference: number | null = null;
 
 class ListItem {
   type: 'b' | 't';
@@ -42,89 +42,56 @@ async function readBookmarksAndTabsData() {
   mapBookmarksTree(barBookmarks);
 }
 
-function mapBookmarksTree(bookmarksTreeNodes: chrome.bookmarks.BookmarkTreeNode[]) {
+function mapBookmarksTree(
+  bookmarksTreeNodes: chrome.bookmarks.BookmarkTreeNode[],
+  prefix: string = ''
+) {
   for (const node of bookmarksTreeNodes) {
     if (node.children?.length) {
-      mapBookmarksTree(node.children);
+      mapBookmarksTree(node.children, `${prefix}/${node.title}/`);
     }
 
     if (!node.url) {
       continue;
     }
 
-    bookmarksAndTabs.push(new ListItem('b', node.title, node.url, node.id));
+    bookmarksAndTabs.push(new ListItem('b', prefix + node.title, node.url, node.id));
   }
 }
 
-function searchHandler(ev: SubmitEvent) {
-  ev.preventDefault();
-
-  if (!(ev.currentTarget instanceof HTMLFormElement)) {
-    return;
+function searchBoxInputHandler() {
+  if (filterIdleCallbackReference !== null) {
+    cancelIdleCallback(filterIdleCallbackReference);
   }
-
-  const formData = new FormData(ev.currentTarget);
-
-  const idxOrId = formData.get('bookmark') as string;
-
-  if (idxOrId?.startsWith('b')) {
-    const id = idxOrId.slice(1);
-    console.log({ id });
-    chrome.bookmarks
-      .get(id)
-      .then((bookmarks) => {
-        if (!bookmarks.length) {
-          throw new Error(`bookmark with id (${id}) not found`);
-        }
-
-        const bookmark = bookmarks[0];
-
-        if (!bookmark.url) {
-          throw new Error(
-            `selected bookmark (${bookmark.title}) is a folder, or has no url`
-          );
-        }
-
-        return chrome.tabs.update({
-          url: bookmark.url
-        });
-      })
-      .catch(console.error);
-
-    return;
-  }
-
-  const idx = +idxOrId;
-  chrome.tabs
-    .query({ index: idx })
-    .then((tabs) => {
-      if (!tabs.length) {
-        throw new Error('tab not found');
-      }
-      if (!tabs[0].id) {
-        throw new Error('tab has no id');
-      }
-      return tabs[0].id;
-    })
-    .then((id) => {
-      return chrome.tabs.update(id, { active: true }).catch(console.error);
-    })
-    .catch(console.error);
+  filterIdleCallbackReference = requestIdleCallback(() => {
+    filterIdleCallbackReference = null;
+    filterList();
+  });
 }
 
-function filterList(value: string) {
+function filterList() {
   const fragment = document.createDocumentFragment();
 
-  value = value.toLowerCase();
+  const value = input.value.toLowerCase().trimStart();
 
-  const matches = bookmarksAndTabs.filter((x) => x.title.toLowerCase().includes(value));
+  const matches =
+    value === ''
+      ? bookmarksAndTabs
+      : bookmarksAndTabs.filter((x) => x.title.toLowerCase().includes(value));
 
+  const re = RegExp(input.value, 'gi');
   matches.map((item, i) => {
-    const li = liTemplate.content.cloneNode(true) as HTMLLIElement;
-    li.innerText = item.title;
+    const li = liTemplate.content.firstChild!.cloneNode(true) as HTMLLIElement;
+    li.innerHTML = item.title.replace(re, '<span class="highlighted">$&</span>');
+    li.classList.add(item.type);
     li.setAttribute('data-id', '' + item.id || `${item.type}:${i}`);
     li.setAttribute('data-url', item.url);
+    fragment.appendChild(li);
   });
+
+  if (fragment.childElementCount) {
+    (fragment.firstChild as HTMLLIElement).classList.add('active');
+  }
 
   searchResults.replaceChildren(fragment);
 }
@@ -135,30 +102,76 @@ async function openUrlInCurrentTab(url: string) {
   });
 }
 
-const input = document.getElementById('bookmarkBox') as HTMLInputElement;
-const liTemplate = document.getElementById('result-item-template') as HTMLTemplateElement;
-const searchResults = document.querySelector('#searchResults ul') as HTMLUListElement;
-(() => {
-  input.addEventListener('change', (ev) => {
-    searchHandler(ev as SubmitEvent);
-  });
+function listClickHandler(ev: MouseEvent) {
+  if (!(ev.target instanceof HTMLElement) || ev.target.nodeName !== 'LI') {
+    return;
+  }
 
-  const button = document.getElementById('bookmarkSearchBtn') as HTMLButtonElement;
+  const url = ev.target.getAttribute('data-url')!;
+  openUrlInCurrentTab(url);
+}
 
-  button.addEventListener('click', (ev) => {
-    input.value;
-    filterList(input.value);
-  });
+function searchBoxKeydownHandler(ev: KeyboardEvent) {
+  switch (ev.key) {
+    case 'Enter': {
+      const li = searchResults.querySelector('li.active');
+      if (!li) {
+        break;
+      }
 
-  searchResults.addEventListener('click', (ev) => {
-    if (!(ev.target instanceof HTMLElement) || ev.target.nodeName !== 'LI') {
-      return;
+      const url = li.getAttribute('data-url')!;
+      openUrlInCurrentTab(url);
+      break;
     }
+    case 'Esc': {
+      input.value = '';
+      break;
+    }
+    case 'ArrowUp': {
+      if (searchResults.children.length < 2) {
+        break;
+      }
+      const li = searchResults.querySelector('li.active');
+      if (!li) {
+        break;
+      }
+      li.classList.remove('active');
 
-    const url = ev.target.getAttribute('data-url')!;
-    openUrlInCurrentTab(url);
-  });
+      const prevElement = (li.previousElementSibling || searchResults.lastElementChild)!;
+      prevElement.classList.add('active');
+      break;
+    }
+    case 'ArrowDown': {
+      if (searchResults.children.length < 2) {
+        break;
+      }
+      const li = searchResults.querySelector('li.active');
+      if (!li) {
+        break;
+      }
+      li.classList.remove('active');
 
-  readBookmarksAndTabsData();
-  filterList('');
+      const nextElement = (li.nextElementSibling || searchResults.firstElementChild)!;
+      nextElement.classList.add('active');
+      break;
+    }
+    default:
+      if (ev.key !== 'Tab' && document.activeElement !== input) {
+        input.focus();
+      }
+      break;
+  }
+}
+
+const input = document.getElementById('searchBox') as HTMLInputElement;
+const liTemplate = document.getElementById('result-item-template') as HTMLTemplateElement;
+const searchResults = document.querySelector('.searchResults ul') as HTMLUListElement;
+(() => {
+  input.addEventListener('input', searchBoxInputHandler);
+  document.addEventListener('keydown', searchBoxKeydownHandler);
+  const button = document.getElementById('searchBoxBtn') as HTMLButtonElement;
+  button.addEventListener('click', filterList);
+  searchResults.addEventListener('click', listClickHandler);
+
+  readBookmarksAndTabsData().then(filterList);
 })();

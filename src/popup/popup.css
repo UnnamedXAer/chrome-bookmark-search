@@ -1,23 +1,116 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(188, 143, 143, 0.3);
+  width: 800px;
+  height: 600px;
   padding: 0;
   margin: 0;
+  background-color: #1e1e1e;
+  /* color: #f0f8ff; */
+  color: #d4d4d4;
+
+  transition: width 250ms, height 250ms;
+  overflow: hidden;
+
+  font-family: Consolas, 'Courier New', monospace;
 }
 
 main {
-  background-color: aliceblue;
   padding: 1rem;
-  border: 1px solid gray;
-  min-height: 200px;
-  max-width: 100%;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-.searchBox {
+.border {
+  margin: 2px;
+  padding: 2px;
+  border: solid 2px #333333;
+  border-radius: 4px;
+}
+
+.searchBoxContainer {
   display: flex;
+  padding: 8px;
+}
+
+.searchBoxContainer span {
+  font-weight: 500;
+  font-size: 1.3em;
+  margin-right: 8px;
+}
+
+#searchBox {
+  outline: none;
+  border: none;
+  background-color: transparent;
+  caret-shape: block;
+  color: inherit;
+  width: 100%;
+}
+
+#searchBoxBtn {
+  background-color: transparent;
+  color: inherit;
+  border: 1px solid #333333;
+  height: 100%;
+}
+
+.searchResults {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  white-space: nowrap;
+}
+
+.searchResults ul {
+  list-style-type: none;
+  padding-inline-start: 4ch;
 }
 
 .searchResults li {
-  text-decoration: none;
+  outline: none;
+  user-select: none;
+  font-size: 1.1em;
+  padding: 2px 1ch;
+  overflow-x: hidden;
+  text-overflow: ellipsis;
+}
+
+.searchResults li.t {
+  color: #dcdcaa;
+}
+
+.highlighted {
+  color: #0e639c;
+}
+
+.searchResults li.active,
+.searchResults li:active,
+.searchResults li:focus,
+.searchResults li:hover {
+  background-color: rgba(138, 43, 226, 0.3);
+}
+.searchResults li:hover {
+  outline: 2px solid rgba(138, 43, 226, 0.3);
+}
+
+.searchResults::-webkit-scrollbar {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.searchResults::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.searchResults::-webkit-scrollbar-thumb {
+  background-color: #333333;
+}
+
+.searchResults::-webkit-scrollbar-thumb:hover {
+  background: #444444;
 }

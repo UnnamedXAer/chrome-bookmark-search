@@ -1,19 +1,24 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <link rel="stylesheet" href="popup.css" />
     <script src="popup.js" defer></script>
   </head>
   <body>
-    <template id="result-item-template">
-      <li class="result-item"></li>
-    </template>
+    <template id="result-item-template"
+      ><li class="result-item" tabindex="0"></li
+    ></template>
 
     <main>
-      <div class="searchBox">
-        <input id="bookmarkBox" type="search" name="bookmark" autofocus />
-        <button id="bookmarkSearchBtn">Search</button>
+      <div class="searchBoxContainer border">
+        <span>&gt;</span>
+        <input id="searchBox" type="search" name="bookmark" autofocus />
+        <button id="searchBoxBtn">Search</button>
       </div>
-      <div class="searchResults">
+      <div class="searchResults border">
         <ul></ul>
       </div>
     </main>
