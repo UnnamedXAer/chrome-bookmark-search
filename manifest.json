@@ -4,11 +4,11 @@
   "version": "0.0.4",
   "permissions": ["activeTab", "scripting", "bookmarks", "tabs"],
   "background": {
-    "service_worker": "service-worker.js"
+    "service_worker": "src/service-worker.js"
   },
   "action": {
     "default_title": "Search Bookmark",
-    "default_popup": "popup/popup.html"
+    "default_popup": "src/popup/popup.html"
   },
   "commands": {
     "_execute_action": {

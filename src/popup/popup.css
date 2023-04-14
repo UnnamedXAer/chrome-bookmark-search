@@ -1,0 +1,23 @@
+body {
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(188, 143, 143, 0.3);
+  padding: 0;
+  margin: 0;
+}
+
+main {
+  background-color: aliceblue;
+  padding: 1rem;
+  border: 1px solid gray;
+  min-height: 200px;
+  max-width: 100%;
+}
+
+.searchBox {
+  display: flex;
+}
+
+.searchResults li {
+  text-decoration: none;
+}

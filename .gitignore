@@ -8,3 +8,6 @@ coverage
 
 # Dependency directories
 node_modules
+
+src/**/*.js
+src/**/*.js.map

@@ -19,6 +19,10 @@ chrome.commands.onCommand.addListener(async (command, tab) => {
     case 'my-custom-action':
       // const bookmarks = await chrome.bookmarks.getTree();
 
+      if (!tab || !tab.id) {
+        return;
+      }
+
       console.log({ command: 'my-custom-action' }, tab.id, new Date());
       if (tab.id > 0) {
         chrome.scripting.executeScript({
