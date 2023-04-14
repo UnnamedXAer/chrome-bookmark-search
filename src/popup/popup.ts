@@ -86,6 +86,9 @@ function filterList() {
     li.classList.add(item.type);
     li.setAttribute('data-id', '' + item.id || `${item.type}:${i}`);
     li.setAttribute('data-url', item.url);
+    item.type === 't' &&
+      item.id !== void 0 &&
+      li.setAttribute('data-tabId', item.id.toString());
     fragment.appendChild(li);
   });
 
@@ -96,9 +99,55 @@ function filterList() {
   searchResults.replaceChildren(fragment);
 }
 
-async function openUrlInCurrentTab(url: string) {
+async function openUrl(
+  url: string,
+  config: {
+    tabId?: number;
+    newTab?: boolean;
+  } = {}
+) {
+  if (typeof config.tabId !== 'undefined') {
+    if (config.tabId !== void 0) {
+      await openUrlInTab(url, config.tabId, true);
+      return window.close();
+    }
+  }
+
+  if (config.newTab) {
+    await openUrlInNewTab(url, true);
+  } else {
+    await openUrlInCurrentTab(url);
+  }
+
+  return window.close();
+}
+
+function openUrlInTab(url: string, tabId: number, active: boolean) {
+  return chrome.tabs
+    .update(tabId, {
+      url: url,
+      active
+    })
+    .then((tab) => {
+      console.log('active tab set, about to highlight...', tab);
+      // following doesn't work
+      return chrome.tabs.highlight({
+        tabs: tabId,
+        windowId: tab?.windowId
+      });
+    });
+}
+
+function openUrlInCurrentTab(url: string) {
   return chrome.tabs.update({
     url: url
+  });
+}
+
+function openUrlInNewTab(url: string, active: boolean) {
+  return chrome.tabs.create({
+    url,
+    active
   });
 }
 
@@ -108,7 +157,7 @@ function listClickHandler(ev: MouseEvent) {
   }
 
   const url = ev.target.getAttribute('data-url')!;
-  openUrlInCurrentTab(url);
+  openUrl(url);
 }
 
 function searchBoxKeydownHandler(ev: KeyboardEvent) {
@@ -120,7 +169,13 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
       }
 
       const url = li.getAttribute('data-url')!;
-      openUrlInCurrentTab(url);
+      const dataTabId = li.getAttribute('data-tabId');
+      let tabId: number | undefined;
+      if (dataTabId) tabId = +dataTabId || void 0;
+      openUrl(url, {
+        newTab: ev.ctrlKey,
+        tabId
+      });
       break;
     }
     case 'Esc': {
@@ -139,6 +194,7 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
 
       const prevElement = (li.previousElementSibling || searchResults.lastElementChild)!;
       prevElement.classList.add('active');
+      prevElement.scrollIntoView();
       break;
     }
     case 'ArrowDown': {
@@ -153,6 +209,7 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
 
       const nextElement = (li.nextElementSibling || searchResults.firstElementChild)!;
       nextElement.classList.add('active');
+      nextElement.scrollIntoView();
       break;
     }
     default:
@@ -169,8 +226,6 @@ const searchResults = document.querySelector('.searchResults ul') as HTMLUListEl
 (() => {
   input.addEventListener('input', searchBoxInputHandler);
   document.addEventListener('keydown', searchBoxKeydownHandler);
-  const button = document.getElementById('searchBoxBtn') as HTMLButtonElement;
-  button.addEventListener('click', filterList);
   searchResults.addEventListener('click', listClickHandler);
 
   readBookmarksAndTabsData().then(filterList);

@@ -47,16 +47,8 @@ main {
   outline: none;
   border: none;
   background-color: transparent;
-  caret-shape: block;
   color: inherit;
   width: 100%;
-}
-
-#searchBoxBtn {
-  background-color: transparent;
-  color: inherit;
-  border: 1px solid #333333;
-  height: 100%;
 }
 
 .searchResults {
