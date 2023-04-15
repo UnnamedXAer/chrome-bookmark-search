@@ -80,16 +80,22 @@ function filterList() {
       ? bookmarksAndTabs
       : bookmarksAndTabs.filter((x) => x.title.toLowerCase().includes(value));
 
-  const re = RegExp(input.value, 'gi');
-  matches.map((item, i) => {
-    const li = liTemplate.content.firstChild!.cloneNode(true) as HTMLLIElement;
-    li.innerHTML = item.title.replace(re, '<span class="highlighted">$&</span>');
+  const re = RegExp(value, 'gi');
+  matches.forEach((item, i) => {
+    const li = document.createElement('li');
+    li.classList.add('result-item', item.type);
     li.classList.add(item.type);
-    li.setAttribute('data-id', '' + item.id || `${item.type}:${i}`);
     li.setAttribute('data-url', item.url);
-    item.type === 't' &&
-      item.id !== void 0 &&
+    li.setAttribute('data-id', '' + item.id || `${item.type}:${i}`);
+    if (value) {
+      li.innerHTML = item.title.replace(re, '<span class="highlighted">$&</span>');
+    } else {
+      li.innerText = item.title;
+    }
+    if (item.type === 't' && item.id !== void 0) {
       li.setAttribute('data-tabId', item.id.toString());
+    }
+
     fragment.appendChild(li);
   });
 
