@@ -1,5 +1,4 @@
-/// <reference path="./popup.d.ts" />
-
+type MaybeElement = Element | null | undefined;
 let filterIdleCallbackReference: number | null = null;
 
 class ListItem {
@@ -273,22 +272,7 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
   }
 }
 
-function setActiveLI(
-  idxOrLI: number | MaybeElement,
-  block: ScrollLogicalPosition = 'center'
-) {
-  let li: MaybeElement;
-  if (typeof idxOrLI === 'number') {
-    if (idxOrLI < 0) {
-      idxOrLI = searchResults.childElementCount - 1;
-    } else if (idxOrLI === searchResults.childElementCount - 1) {
-      idxOrLI = 0;
-    }
-    li = searchResults.children[idxOrLI];
-  } else {
-    li = idxOrLI;
-  }
-
+function setActiveLI(li: MaybeElement, block: ScrollLogicalPosition = 'center') {
   li ??= searchResults.firstElementChild;
 
   if (li) {
