@@ -1,14 +1,17 @@
+:root {
+  --page-size: 25;
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   width: 800px;
-  height: 600px;
+  min-height: 500px;
   padding: 0;
   margin: 0;
   background-color: #1e1e1e;
-  /* color: #f0f8ff; */
   color: #d4d4d4;
 
   transition: width 250ms, height 250ms;
@@ -20,7 +23,6 @@ body {
 main {
   padding: 1rem;
   width: 100%;
-  height: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -61,12 +63,15 @@ main {
 .searchResults ul {
   list-style-type: none;
   padding-inline-start: 4ch;
+  margin-block: 0;
+  height: calc(var(--page-size) * 20px);
 }
 
 .searchResults li {
   outline: none;
   user-select: none;
   font-size: 1.1em;
+  height: 20px;
   padding: 2px 1ch;
   overflow-x: hidden;
   text-overflow: ellipsis;
@@ -80,14 +85,12 @@ main {
   color: #0e639c;
 }
 
-.searchResults li.active,
-.searchResults li:active,
-.searchResults li:focus,
 .searchResults li:hover {
-  background-color: rgba(138, 43, 226, 0.3);
+  background-color: rgba(138, 43, 226, 0.15);
 }
-.searchResults li:hover {
-  outline: 2px solid rgba(138, 43, 226, 0.3);
+
+.searchResults li.active {
+  background-color: rgba(138, 43, 226, 0.3);
 }
 
 .searchResults::-webkit-scrollbar {

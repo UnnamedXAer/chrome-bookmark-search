@@ -1,3 +1,5 @@
+/// <reference path="./popup.d.ts" />
+
 let filterIdleCallbackReference: number | null = null;
 
 class ListItem {
@@ -104,17 +106,15 @@ async function openUrl(
   config: {
     tabId?: number;
     newTab?: boolean;
+    newWindow?: boolean;
   } = {}
 ) {
-  if (typeof config.tabId !== 'undefined') {
-    if (config.tabId !== void 0) {
-      await openUrlInTab(url, config.tabId, true);
-      return window.close();
-    }
-  }
-
-  if (config.newTab) {
-    await openUrlInNewTab(url, true);
+  if (config.newWindow) {
+    await createNewWindowWithUrl(url, true);
+  } else if (config.newTab) {
+    await createNewTabWithUrl(url, true);
+  } else if (config.tabId !== void 0) {
+    await openUrlInExistingTab(url, config.tabId, true);
   } else {
     await openUrlInCurrentTab(url);
   }
@@ -122,20 +122,19 @@ async function openUrl(
   return window.close();
 }
 
-function openUrlInTab(url: string, tabId: number, active: boolean) {
-  return chrome.tabs
-    .update(tabId, {
-      url: url,
-      active
-    })
-    .then((tab) => {
-      console.log('active tab set, about to highlight...', tab);
-      // following doesn't work
-      return chrome.tabs.highlight({
-        tabs: tabId,
-        windowId: tab?.windowId
-      });
-    });
+async function openUrlInExistingTab(url: string, tabId: number, active: boolean) {
+  const tab = await chrome.tabs.update(tabId, {
+    url: url,
+    active
+  });
+
+  if (!tab || !active) {
+    return;
+  }
+
+  return chrome.windows.update(tab.windowId, {
+    focused: active
+  });
 }
 
 function openUrlInCurrentTab(url: string) {
@@ -144,80 +143,172 @@ function openUrlInCurrentTab(url: string) {
   });
 }
 
-function openUrlInNewTab(url: string, active: boolean) {
+function createNewTabWithUrl(url: string, active: boolean) {
   return chrome.tabs.create({
     url,
     active
   });
 }
 
+function createNewWindowWithUrl(url: string, active: boolean) {
+  return chrome.windows.create({
+    focused: active,
+    url
+  });
+}
+
 function listClickHandler(ev: MouseEvent) {
-  if (!(ev.target instanceof HTMLElement) || ev.target.nodeName !== 'LI') {
+  if (!(ev.target instanceof HTMLLIElement)) {
     return;
   }
 
-  const url = ev.target.getAttribute('data-url')!;
-  openUrl(url);
+  itemSelected(ev.target, ev);
 }
 
 function searchBoxKeydownHandler(ev: KeyboardEvent) {
   switch (ev.key) {
     case 'Enter': {
       const li = searchResults.querySelector('li.active');
-      if (!li) {
+      if (!(li instanceof HTMLLIElement)) {
         break;
       }
 
-      const url = li.getAttribute('data-url')!;
-      const dataTabId = li.getAttribute('data-tabId');
-      let tabId: number | undefined;
-      if (dataTabId) tabId = +dataTabId || void 0;
-      openUrl(url, {
-        newTab: ev.ctrlKey,
-        tabId
-      });
+      itemSelected(li, ev);
       break;
     }
     case 'Esc': {
       input.value = '';
       break;
     }
-    case 'ArrowUp': {
-      if (searchResults.children.length < 2) {
-        break;
-      }
-      const li = searchResults.querySelector('li.active');
-      if (!li) {
-        break;
-      }
-      li.classList.remove('active');
-
-      const prevElement = (li.previousElementSibling || searchResults.lastElementChild)!;
-      prevElement.classList.add('active');
-      prevElement.scrollIntoView();
-      break;
-    }
+    case 'Tab':
+    case 'ArrowUp':
     case 'ArrowDown': {
-      if (searchResults.children.length < 2) {
+      if (ev.ctrlKey || searchResults.childElementCount < 2) {
         break;
       }
+
+      let key = ev.key;
+      if (key === 'Tab') {
+        ev.preventDefault();
+        if (document.activeElement !== input) {
+          requestAnimationFrame(() => input.focus());
+        }
+        key = ev.shiftKey ? 'ArrowUp' : 'ArrowDown';
+      }
+
       const li = searchResults.querySelector('li.active');
-      if (!li) {
+      if (!(li instanceof HTMLLIElement)) {
         break;
       }
       li.classList.remove('active');
 
-      const nextElement = (li.nextElementSibling || searchResults.firstElementChild)!;
-      nextElement.classList.add('active');
-      nextElement.scrollIntoView();
+      const newActiveElement =
+        key === 'ArrowDown'
+          ? li.nextElementSibling || searchResults.firstElementChild
+          : li.previousElementSibling || searchResults.lastElementChild;
+
+      setActiveLI(newActiveElement, 'center');
       break;
     }
+    case 'Home':
+    case 'End': {
+      if (!ev.ctrlKey || searchResults.childElementCount < 2) {
+        break;
+      }
+      const li = searchResults.querySelector('li.active');
+      if (li instanceof HTMLLIElement) {
+        li.classList.remove('active');
+      }
+
+      const newActiveElement =
+        ev.key === 'Home'
+          ? searchResults.firstElementChild
+          : searchResults.lastElementChild;
+
+      setActiveLI(newActiveElement, 'nearest');
+      break;
+    }
+    case 'PageDown':
+    case 'PageUp':
+      ev.preventDefault();
+      const len = searchResults.childElementCount;
+      if (len < 2) {
+        break;
+      }
+
+      const PAGE_SIZE = 25;
+
+      const li = searchResults.querySelector('li.active');
+      if (li instanceof HTMLLIElement) {
+        li.classList.remove('active');
+      }
+
+      let newActiveElement: MaybeElement;
+
+      const isPageUp = ev.key === 'PageUp';
+      if (isPageUp || ev.key === 'PageDown') {
+        for (let i = 0; i < searchResults.children.length; i++) {
+          if (searchResults.children[i] === li) {
+            let newIdx: number;
+            if (isPageUp) {
+              newIdx = Math.max(0, i - PAGE_SIZE);
+            } else {
+              newIdx = Math.min(len - 1, i + PAGE_SIZE);
+            }
+            console.log(i, newIdx);
+            newActiveElement = searchResults.children[newIdx] as Element;
+            break;
+          }
+        }
+      }
+
+      setActiveLI(newActiveElement, isPageUp ? 'end' : 'start');
+
+      break;
     default:
-      if (ev.key !== 'Tab' && document.activeElement !== input) {
+      if (document.activeElement !== input) {
         input.focus();
       }
       break;
   }
+}
+
+function setActiveLI(
+  idxOrLI: number | MaybeElement,
+  block: ScrollLogicalPosition = 'center'
+) {
+  let li: MaybeElement;
+  if (typeof idxOrLI === 'number') {
+    if (idxOrLI < 0) {
+      idxOrLI = searchResults.childElementCount - 1;
+    } else if (idxOrLI === searchResults.childElementCount - 1) {
+      idxOrLI = 0;
+    }
+    li = searchResults.children[idxOrLI];
+  } else {
+    li = idxOrLI;
+  }
+
+  li ??= searchResults.firstElementChild;
+
+  if (li) {
+    li.classList.add('active');
+    li.scrollIntoView({ block });
+  }
+}
+
+function itemSelected(li: HTMLLIElement, ev: KeyboardEvent | MouseEvent) {
+  const url = li.getAttribute('data-url')!;
+  const dataTabId = li.getAttribute('data-tabId');
+  let tabId: number | undefined;
+  if (dataTabId) {
+    tabId = +dataTabId;
+  }
+  return openUrl(url, {
+    newTab: ev.ctrlKey,
+    newWindow: ev.shiftKey,
+    tabId
+  });
 }
 
 const input = document.getElementById('searchBox') as HTMLInputElement;
