@@ -18,9 +18,11 @@ class ListItem {
 let bookmarksAndTabs: ListItem[] = [];
 
 async function readBookmarksAndTabsData() {
-  const allTabs = await chrome.tabs.query({});
+  const [allTabs, allBookmarks] = await Promise.all([
+    chrome.tabs.query({}),
+    chrome.bookmarks.getTree()
+  ]);
 
-  bookmarksAndTabs.length = 0;
   allTabs.forEach((t) => {
     if (!t.url) {
       return;
@@ -36,7 +38,6 @@ async function readBookmarksAndTabsData() {
     );
   });
 
-  const allBookmarks = await chrome.bookmarks.getTree();
   const barBookmarks =
     allBookmarks[0].children?.find((b) => b.title === 'Bookmarks bar')?.children || [];
 
@@ -73,24 +74,42 @@ function searchBoxInputHandler() {
 function filterList() {
   const fragment = document.createDocumentFragment();
 
-  const value = input.value.toLowerCase().trimStart();
+  const searchText = input.value.toLowerCase().trimStart();
+  const searchTextLen = searchText.length;
 
-  const matches =
-    value === ''
-      ? bookmarksAndTabs
-      : bookmarksAndTabs.filter((x) => x.title.toLowerCase().includes(value));
+  const re = RegExp(searchText, 'gi');
+  bookmarksAndTabs.forEach((item, i) => {
+    if (searchTextLen > 0 && !item.title.toLowerCase().includes(searchText)) {
+      return;
+    }
 
-  const re = RegExp(value, 'gi');
-  matches.forEach((item, i) => {
     const li = document.createElement('li');
     li.classList.add('result-item', item.type);
     li.classList.add(item.type);
     li.setAttribute('data-url', item.url);
-    li.setAttribute('data-id', '' + item.id || `${item.type}:${i}`);
-    if (value) {
-      li.innerHTML = item.title.replace(re, '<span class="highlighted">$&</span>');
+    if (searchTextLen > 0) {
+      let prevTextEnd = 0;
+      const titleLower = item.title.toLowerCase();
+      let title = item.title;
+
+      let idx = titleLower.indexOf(searchText, prevTextEnd);
+      while (idx !== -1) {
+        const span = document.createElement('span');
+        span.className = 'highlighted';
+        span.textContent = title.substring(idx, idx + searchTextLen);
+        const preText = item.title.substring(prevTextEnd, idx);
+
+        li.append(preText, span);
+
+        prevTextEnd = idx + searchTextLen;
+        idx = titleLower.indexOf(searchText, prevTextEnd);
+      }
+
+      if (prevTextEnd < title.length) {
+        li.append(title.substring(prevTextEnd));
+      }
     } else {
-      li.innerText = item.title;
+      li.textContent = item.title;
     }
     if (item.type === 't' && item.id !== void 0) {
       li.setAttribute('data-tabId', item.id.toString());
@@ -260,7 +279,6 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
             } else {
               newIdx = Math.min(len - 1, i + PAGE_SIZE);
             }
-            console.log(i, newIdx);
             newActiveElement = searchResults.children[newIdx] as Element;
             break;
           }
@@ -301,6 +319,8 @@ function itemSelected(li: HTMLLIElement, ev: KeyboardEvent | MouseEvent) {
   });
 }
 
+readBookmarksAndTabsData().then(filterList);
+
 const input = document.getElementById('searchBox') as HTMLInputElement;
 const liTemplate = document.getElementById('result-item-template') as HTMLTemplateElement;
 const searchResults = document.querySelector('.searchResults ul') as HTMLUListElement;
@@ -308,6 +328,4 @@ const searchResults = document.querySelector('.searchResults ul') as HTMLUListEl
   input.addEventListener('input', searchBoxInputHandler);
   document.addEventListener('keydown', searchBoxKeydownHandler);
   searchResults.addEventListener('click', listClickHandler);
-
-  readBookmarksAndTabsData().then(filterList);
 })();
