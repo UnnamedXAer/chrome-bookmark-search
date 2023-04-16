@@ -129,11 +129,14 @@ async function openUrl(
   url: string,
   config: {
     tabId?: number;
+    forceInCurrentTab?: boolean;
     newTab?: boolean;
     newWindow?: boolean;
   } = {}
 ) {
-  if (config.newWindow) {
+  if (config.forceInCurrentTab) {
+    await openUrlInCurrentTab(url);
+  } else if (config.newWindow) {
     await createNewWindowWithUrl(url, true);
   } else if (config.newTab) {
     await createNewTabWithUrl(url, true);
@@ -200,8 +203,40 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
       itemSelected(li, ev);
       break;
     }
-    case 'Esc': {
-      input.value = '';
+    case 'Escape': {
+      if (input.value) {
+        input.focus();
+        input.value = '';
+        searchBoxInputHandler();
+        ev.preventDefault();
+      }
+      break;
+    }
+    case 'c': {
+      if (!ev.altKey) {
+        break;
+      }
+
+      const li = searchResults.querySelector('li.active');
+      if (!(li instanceof HTMLLIElement)) {
+        break;
+      }
+
+      li.toggleAttribute('data-close-tab');
+      break;
+    }
+    case 'w': {
+      if (!ev.ctrlKey) {
+        break;
+      }
+      ev.preventDefault();
+
+      const li = searchResults.querySelector('li.active');
+      if (!(li instanceof HTMLLIElement)) {
+        break;
+      }
+
+      closeTabAndSetClosestActive(li);
       break;
     }
     case 'Tab':
@@ -296,25 +331,60 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
   }
 }
 
+async function closeTabAndSetClosestActive(li: HTMLLIElement) {
+  let tabId = getTabIdFromLI(li);
+
+  if (!tabId) {
+    return;
+  }
+  try {
+    await chrome.tabs.remove(tabId);
+  } catch (err) {
+    return;
+  }
+
+  const newActiveElement = li.nextElementSibling || li.previousElementSibling;
+  li.remove();
+  setActiveLI(newActiveElement, 'nearest');
+}
+
 function setActiveLI(li: MaybeElement, block: ScrollLogicalPosition = 'center') {
   li ??= searchResults.firstElementChild;
 
-  if (li) {
-    li.classList.add('active');
-    li.scrollIntoView({ block });
+  if (!li) {
+    return;
   }
+
+  li.classList.add('active');
+  li.scrollIntoView({ block });
+}
+
+function getTabIdFromLI(li: HTMLLIElement): number | undefined {
+  const dataTabId = li.getAttribute('data-tabId');
+  if (!dataTabId) {
+    return;
+  }
+
+  return +dataTabId;
 }
 
 function itemSelected(li: HTMLLIElement, ev: KeyboardEvent | MouseEvent) {
   const url = li.getAttribute('data-url')!;
-  const dataTabId = li.getAttribute('data-tabId');
-  let tabId: number | undefined;
-  if (dataTabId) {
-    tabId = +dataTabId;
+  const closeTab = li.getAttribute('data-close-tab');
+  let tabId = getTabIdFromLI(li);
+
+  if (tabId && closeTab) {
+    chrome.tabs.remove(tabId).catch((err) => {});
+    tabId = void 0;
   }
+
+  if (ev.shiftKey && ev.ctrlKey && ev.altKey && tabId) {
+  }
+
   return openUrl(url, {
     newTab: ev.ctrlKey,
     newWindow: ev.shiftKey,
+    forceInCurrentTab: ev.shiftKey && ev.ctrlKey,
     tabId
   });
 }

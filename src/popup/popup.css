@@ -62,7 +62,7 @@ main {
 
 .searchResults ul {
   list-style-type: none;
-  padding-inline-start: 4ch;
+  padding-inline-start: 0;
   margin-block: 0;
   height: calc(var(--page-size) * 20px);
 }
@@ -70,11 +70,24 @@ main {
 .searchResults li {
   outline: none;
   user-select: none;
-  font-size: 1.1em;
-  height: 20px;
   padding: 2px 1ch;
+  padding-inline-start: 4ch;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  height: 20px;
+  font-size: 1.1em;
   overflow-x: hidden;
   text-overflow: ellipsis;
+}
+
+.searchResults li[data-close-tab] {
+  position: relative;
+}
+
+.searchResults li[data-close-tab]::before {
+  content: '[x]';
+  position: absolute;
+  left: -2ch;
 }
 
 .searchResults li.t {
