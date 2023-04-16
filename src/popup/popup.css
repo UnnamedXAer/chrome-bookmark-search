@@ -53,6 +53,11 @@ main {
   width: 100%;
 }
 
+#showHelpBtn {
+  color: #cccccc;
+  cursor: pointer;
+}
+
 .searchResults {
   flex: 1;
   overflow-x: hidden;

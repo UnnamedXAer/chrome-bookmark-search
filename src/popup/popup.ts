@@ -398,4 +398,7 @@ const searchResults = document.querySelector('.searchResults ul') as HTMLUListEl
   input.addEventListener('input', searchBoxInputHandler);
   document.addEventListener('keydown', searchBoxKeydownHandler);
   searchResults.addEventListener('click', listClickHandler);
+  document.getElementById('showHelpBtn')!.addEventListener('click', () => {
+    import('./help.js').then((help) => help.showHelp());
+  });
 })();
