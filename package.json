@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "tsc": "tsc",
-    "tscw": "tsc -w"
+    "tscw": "tsc -w",
+    "zip": "powershell -NoProfile -Command ./zip.ps1"
   },
   "keywords": [
     "chrome",
