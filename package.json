@@ -1,14 +1,20 @@
 {
   "name": "chrome-bookmark-search",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1",
+  "description": "This project is a chrome extension for keyboard heavy users to easily switch tabs or open bookmarks.",
   "main": "index.js",
   "scripts": {
     "tsc": "tsc",
     "tscw": "tsc -w"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "chrome",
+    "extension",
+    "search",
+    "tabs",
+    "bookmarks"
+  ],
+  "author": "UnnamedXAer",
   "license": "ISC",
   "devDependencies": {
     "chrome-types": "^0.1.185",
