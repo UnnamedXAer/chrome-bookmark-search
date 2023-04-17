@@ -17,7 +17,18 @@ The extensions has a few shortcuts that cover common needs while opening bookmar
 
 ## Installation
 
-To load the extension clone the repo and build it using `tsc`.
-Next go to *chrome://extensions*, enable `Developer mode`, after that use `Load unpacked` selecting the folder with source code (manifest.json should be at the root folder).
+- You can use `chrome-ext.zip` from the [Releases](https://github.com/UnnamedXAer/chrome-bookmark-search/releases). 
 
-Chrome does not allow to use packed extensions that are not from Chrome Web Store therefore it is no point of building one.
+  - download the `chrome-ext.zip`
+  - goto *chrome://extensions*
+  - enable `Developer mode`
+  - drag&drop the zip file into chrome extensions tab.
+
+- To build the extension from source:
+
+  - clone the repo
+  - build it using `tsc`.
+  - go to *chrome://extensions*, enable `Developer mode`
+  - use `Load unpacked` selecting the folder with source code (manifest.json should be at the root folder).
+
+*Chrome does not allow to use packed extensions that are not installed via Chrome Web Store therefore there is no point of building one.*
