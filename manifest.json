@@ -2,8 +2,8 @@
   "manifest_version": 3,
   "name": "Bookmarks & Tabs Search",
   "version": "0.0.5",
-  "description": "(Shortcut: Ctrl+M)\nThis extension displays list of the opened tabs (except the ones opened in the incognito windows) and all bookmarks allowing to quickly find and open them.",
-  "author": "UnnamedXAer@gmail.com",
+  "description": "Ctrl+M\nThis extension displays list of the opened tabs (except the incognito) and all bookmarks to quickly find and open them.",
+  "author": "UnnamedXAer",
   "minimum_chrome_version": "110",
   "permissions": ["activeTab", "bookmarks", "tabs", "tabGroups"],
   "background": {
@@ -16,7 +16,13 @@
   "commands": {
     "_execute_action": {
       "description": "Search Tabs & Bookmarks",
-      "suggested_key": "Ctrl+M"
+      "suggested_key": { "default": "Ctrl+M" }
     }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
 }
