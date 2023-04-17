@@ -14,9 +14,9 @@ Copy-Item "./src" -Recurse "./build"
 Get-ChildItem "./build/src" -Recurse | Where-Object { ($_.name -like "*.ts") -or ($_.name -like "*.js.map") } | Remove-Item
 
 $cwd = $pwd
-cd "./build"
+Set-Location "./build"
 zip -FSr "../chrome-ext.zip" "./*" -9
-cd $cwd
+Set-Location $cwd
 
 Remove-Item "./build" -Recurse -Force -ErrorAction Ignore > $null
 
