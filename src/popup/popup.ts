@@ -38,10 +38,15 @@ async function readBookmarksAndTabsData() {
     );
   });
 
-  const barBookmarks =
-    allBookmarks[0].children?.find((b) => b.title === 'Bookmarks bar')?.children || [];
-
-  mapBookmarksTree(barBookmarks);
+  allBookmarks.forEach((bookmarks) => {
+    if (bookmarks.children) {
+      bookmarks.children.forEach((b) => {
+        if (b.children) {
+          mapBookmarksTree(b.children);
+        }
+      });
+    }
+  });
 }
 
 function mapBookmarksTree(
