@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Bookmarks & Tabs Search",
   "version": "0.0.5",
-  "description": "Ctrl+M\nThis extension displays list of the opened tabs (except the incognito) and all bookmarks to quickly find and open them.",
+  "description": "This extension for keyboard heavy users to easily switch tabs or open bookmarks. Use Ctrl+M to open.",
   "author": "UnnamedXAer",
   "minimum_chrome_version": "110",
   "permissions": ["activeTab", "bookmarks", "tabs", "tabGroups"],
