@@ -146,7 +146,7 @@ async function openUrl(
   } else if (config.newTab) {
     await createNewTabWithUrl(url, true);
   } else if (config.tabId !== void 0) {
-    await openUrlInExistingTab(url, config.tabId, true);
+    await focusOnTab(config.tabId);
   } else {
     await openUrlInCurrentTab(url);
   }
@@ -154,18 +154,17 @@ async function openUrl(
   return window.close();
 }
 
-async function openUrlInExistingTab(url: string, tabId: number, active: boolean) {
+async function focusOnTab(tabId: number) {
   const tab = await chrome.tabs.update(tabId, {
-    url: url,
-    active
+    active: true
   });
 
-  if (!tab || !active) {
+  if (!tab) {
     return;
   }
 
   return chrome.windows.update(tab.windowId, {
-    focused: active
+    focused: true
   });
 }
 
