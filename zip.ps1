@@ -15,7 +15,15 @@ Get-ChildItem "./build/src" -Recurse | Where-Object { ($_.name -like "*.ts") -or
 
 $cwd = $pwd
 Set-Location "./build"
-zip -FSr "../chrome-ext.zip" "./*" -9
+
+# if you do not have zip installed:
+
+# http://stahlworks.com/dev/index.php?tool=zipunzip
+# ../zip.exe -FSr "../chrome-ext.zip" "./*" -9
+
+#else
+
+zip.exe -FSr "../chrome-ext.zip" "./*" -9
 Set-Location $cwd
 
 Remove-Item "./build" -Recurse -Force -ErrorAction Ignore > $null
