@@ -6,22 +6,38 @@ class ListItem {
   title: string;
   url: string;
   id?: string | number;
+  currentActive: boolean;
 
-  constructor(type: 'b' | 't', title: string, url: string, id?: string | number) {
+  constructor(
+    type: 'b' | 't',
+    title: string,
+    url: string,
+    currentActive: boolean,
+    id?: string | number
+  ) {
     this.title = title;
     this.type = type;
     this.url = url;
     this.id = id;
+    this.currentActive = currentActive;
   }
 }
 
 let bookmarksAndTabs: ListItem[] = [];
+let currentTab: chrome.tabs.Tab | undefined;
 
 async function readBookmarksAndTabsData() {
-  const [allTabs, allBookmarks] = await Promise.all([
+  const [_currentTab, allTabs, allBookmarks] = await Promise.all([
+    chrome.tabs
+      .query({
+        active: true,
+        lastFocusedWindow: true
+      })
+      .then((tabs) => tabs.at(0)),
     chrome.tabs.query({}),
     chrome.bookmarks.getTree()
   ]);
+  currentTab = _currentTab;
 
   allTabs.forEach((t) => {
     if (!t.url) {
@@ -33,6 +49,7 @@ async function readBookmarksAndTabsData() {
         't',
         t.title || t.url!.replace(/http(s)?:\/\//, '').substring(0, 50),
         t.url!,
+        !!t.id && t.id === currentTab?.id,
         t.id
       )
     );
@@ -62,7 +79,9 @@ function mapBookmarksTree(
       continue;
     }
 
-    bookmarksAndTabs.push(new ListItem('b', prefix + node.title, node.url, node.id));
+    bookmarksAndTabs.push(
+      new ListItem('b', prefix + node.title, node.url, false, node.id)
+    );
   }
 }
 
@@ -82,7 +101,7 @@ function filterList() {
   const searchText = input.value.toLowerCase().trimStart();
   const searchTextLen = searchText.length;
 
-  const re = RegExp(searchText, 'gi');
+  // const re = RegExp(searchText, 'gi');
   bookmarksAndTabs.forEach((item, i) => {
     if (searchTextLen > 0 && !item.title.toLowerCase().includes(searchText)) {
       return;
@@ -118,6 +137,9 @@ function filterList() {
     }
     if (item.type === 't' && item.id !== void 0) {
       li.setAttribute('data-tabId', item.id.toString());
+      if (item.currentActive) {
+        li.classList.add('activeTab');
+      }
     }
 
     fragment.appendChild(li);
@@ -141,6 +163,8 @@ async function openUrl(
 ) {
   if (config.forceInCurrentTab) {
     await openUrlInCurrentTab(url);
+    // no-wait
+    closeTabIfNotCurrent(config.tabId);
   } else if (config.newWindow) {
     await createNewWindowWithUrl(url, true);
   } else if (config.newTab) {
@@ -335,6 +359,26 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
   }
 }
 
+async function closeTabIfNotCurrent(tabId?: number) {
+  if (!tabId) {
+    return;
+  }
+  try {
+    const [currentTab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true
+    });
+
+    if (currentTab && currentTab.id === tabId) {
+      return;
+    }
+
+    await chrome.tabs.remove(tabId);
+  } catch (err) {
+    console.log({ closeTabIfNotCurrent: err });
+  }
+}
+
 async function closeTabAndSetClosestActive(li: HTMLLIElement) {
   let tabId = getTabIdFromLI(li);
 
@@ -344,6 +388,7 @@ async function closeTabAndSetClosestActive(li: HTMLLIElement) {
   try {
     await chrome.tabs.remove(tabId);
   } catch (err) {
+    console.log({ err });
     return;
   }
 
@@ -378,11 +423,10 @@ function itemSelected(li: HTMLLIElement, ev: KeyboardEvent | MouseEvent) {
   let tabId = getTabIdFromLI(li);
 
   if (tabId && closeTab) {
-    chrome.tabs.remove(tabId).catch((err) => {});
+    chrome.tabs.remove(tabId).catch((err) => {
+      console.log({ err });
+    });
     tabId = void 0;
-  }
-
-  if (ev.shiftKey && ev.ctrlKey && ev.altKey && tabId) {
   }
 
   return openUrl(url, {

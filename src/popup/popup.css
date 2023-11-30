@@ -92,11 +92,16 @@ main {
 .searchResults li[data-close-tab]::before {
   content: '[x]';
   position: absolute;
-  left: -2ch;
+  /* left: -2ch; */
+  left: 0ch;
 }
 
 .searchResults li.t {
   color: #dcdcaa;
+}
+
+.searchResults li.activeTab {
+  text-decoration: underline rgba(255, 99, 71, 64%);
 }
 
 .highlighted {

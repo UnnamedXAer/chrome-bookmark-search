@@ -5,7 +5,7 @@
   "description": "This extension for keyboard heavy users to easily switch tabs or open bookmarks. Use Ctrl+M to open.",
   "author": "UnnamedXAer",
   "minimum_chrome_version": "110",
-  "permissions": ["activeTab", "bookmarks", "tabs", "tabGroups"],
+  "permissions": ["bookmarks", "tabs", "tabGroups"],
   "background": {
     "service_worker": "src/service-worker.js"
   },

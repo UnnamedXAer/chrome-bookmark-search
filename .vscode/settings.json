@@ -1,3 +1,4 @@
 {
-  "livePreview.defaultPreviewPath": "/src/popup/popup.html"
+  "livePreview.defaultPreviewPath": "/src/popup/popup.html",
+  "editor.formatOnSave": true
 }
