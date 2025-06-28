@@ -1,7 +1,7 @@
 
 Remove-Item "./build" -Recurse -Force -ErrorAction Ignore > $null
 
-pnpm run tsc > $null
+npm run tsc > $null
 mkdir "./build" > $null
 
 mkdir "./build/icons"  > $null
