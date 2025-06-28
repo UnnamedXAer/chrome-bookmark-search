@@ -64,7 +64,7 @@ body {
   background-color: var(--bg-color);
   color: var(--fg-color);
 
-  transition: width 250ms, height 250ms;
+  transition: width 50ms, height 50ms;
   overflow: hidden;
 
   font-family: Consolas, 'Courier New', monospace;
