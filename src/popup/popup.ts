@@ -270,13 +270,18 @@ function searchBoxKeydownHandler(ev: KeyboardEvent) {
     case 'Tab':
     case 'ArrowUp':
     case 'ArrowDown': {
-      if (ev.ctrlKey || searchResults.childElementCount < 2) {
+      if (ev.ctrlKey) {
+        break;
+      }
+
+      ev.preventDefault();
+
+      if (searchResults.childElementCount < 2) {
         break;
       }
 
       let key = ev.key;
       if (key === 'Tab') {
-        ev.preventDefault();
         if (document.activeElement !== input) {
           requestAnimationFrame(() => input.focus());
         }
