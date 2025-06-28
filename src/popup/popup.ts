@@ -138,7 +138,7 @@ function filterList() {
     if (item.type === 't' && item.id !== void 0) {
       li.setAttribute('data-tabId', item.id.toString());
       if (item.currentActive) {
-        li.classList.add('activeTab');
+        li.classList.add('currTab');
       }
     }
 

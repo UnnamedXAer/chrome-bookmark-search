@@ -18,7 +18,7 @@
   "author": "UnnamedXAer",
   "license": "ISC",
   "devDependencies": {
-    "chrome-types": "^0.1.185",
-    "typescript": "^5.0.4"
+    "chrome-types": "^0.1.357",
+    "typescript": "^5.8.3"
   }
 }

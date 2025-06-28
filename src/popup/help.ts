@@ -17,7 +17,6 @@ function closeDialog(dialog: HTMLDialogElement) {
 
 function showDialog(dialog: HTMLDialogElement) {
   function withDialogDocumentKeydownHandler(ev: KeyboardEvent) {
-    console.log('d', ev);
     ev.preventDefault();
     ev.stopImmediatePropagation();
 
@@ -25,10 +24,8 @@ function showDialog(dialog: HTMLDialogElement) {
       return;
     }
     document.removeEventListener('keydown', withDialogDocumentKeydownHandler, true);
-    console.log('close in dialog', dialog);
     dialog.close();
   }
-
 
   document.addEventListener('keydown', withDialogDocumentKeydownHandler, true);
   return dialog.showModal();
@@ -41,16 +38,17 @@ function buildHelp(helpInfo: HelpData) {
   }
 
   dialog = document.createElement('dialog');
+  dialog.id = 'helpDialog';
+  const settings = buildSettings();
   const desc = buildDescription(helpInfo.description);
   const shortcuts = buildShortcutsTable(helpInfo.shortcuts);
-  dialog.append(desc, document.createElement('hr'), shortcuts);
-
-  Object.assign(dialog.style, {
-    backgroundColor: '#252526',
-    color: '#cccccc',
-    border: 'solid 2px #333333',
-    borderRadius: '4px'
-  } as CSSStyleDeclaration);
+  dialog.append(
+    desc,
+    document.createElement('hr'),
+    settings,
+    document.createElement('hr'),
+    shortcuts
+  );
 
   dialog.addEventListener('keydown', function (ev) {
     ev.preventDefault();
@@ -60,6 +58,57 @@ function buildHelp(helpInfo: HelpData) {
   });
 
   return dialog;
+}
+
+function buildSettings() {
+  const settingsEl = document.createElement('fieldset');
+
+  const legend = document.createElement('legend');
+  legend.textContent = 'Settings';
+
+  const themes = [
+    { name: 'Light', value: 'light' },
+    { name: 'Dark', value: 'dark' },
+    { name: 'System', value: 'system' }
+  ];
+
+  const themeSelect = document.createElement('select');
+  const themeLabel = document.createElement('label');
+  themeLabel.textContent = 'Theme:';
+
+  themeSelect.addEventListener('change', (ev) => {
+    const selectedTheme = (ev.target as HTMLSelectElement).value;
+
+    localStorage.setItem('theme', selectedTheme);
+    // chrome.storage.local.set({ theme: selectedTheme });
+
+    const newTheme = getTheme();
+
+    document.documentElement.setAttribute('theme', newTheme);
+  });
+
+  themeLabel.appendChild(themeSelect);
+
+  // currTheme = document.documentElement.getAttribute('theme') || 'dark';
+  // chrome.storage.local.get(['theme'], (result) => {
+  // const theme = result.theme || 'dark';
+  const currTheme = (localStorage.getItem('theme') || 'system') as Theme;
+
+  // console.log('Current theme:', currTheme);
+
+  themes.forEach((theme) => {
+    const option = document.createElement('option');
+    option.value = theme.value;
+    option.textContent = theme.name;
+    if (theme.value === currTheme) {
+      option.selected = true;
+    }
+    themeSelect.appendChild(option);
+  });
+
+  settingsEl.append(legend, themeLabel);
+
+  return settingsEl;
 }
 
 function buildDescription(description: HelpData['description']) {

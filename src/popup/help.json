@@ -12,5 +12,5 @@
     "Ctrl + w": "Close selected tab.",
     "Alt + c": "Mark selected tab to be closed if it will be the target. It will close the existing tab and open url in current/new tab base on used combination."
   },
-  "description": "This popup displays list of the opened tabs (except the ones opened in the incognito windows) and all bookmarks allowing to quickly find and open them./nTabs are always at the top of the list and colored in light yellow."
+  "description": "This popup displays list of the opened tabs (except the ones opened in the incognito windows) and all bookmarks allowing to quickly find and open them. Tabs are always at the top of the list and have different text color."
 }
