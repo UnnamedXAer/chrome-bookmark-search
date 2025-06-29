@@ -1,13 +1,29 @@
+type Prettify<T> = {
+  [K in keyof T]: Prettify<T[K]>;
+} & {};
+
+type ValueName<K extends string> = (K extends infer X
+  ? { value: X; name: X extends string ? Capitalize<X> : never }
+  : never)[];
+
 type KeyboardMode = 'standard' | 'vim-like';
 type KeyboardVimMode = 'insert'; // for now let's keep it simple
-let keyboardVimMode: KeyboardVimMode = 'insert';
-
-let keyboardMode: KeyboardMode = 'standard';
+let gKeyboardVimMode: KeyboardVimMode = 'insert';
+let gKeyboardMode = {
+  value_: 'standard' as KeyboardMode,
+  get value() {
+    return this.value_;
+  },
+  set value(newValue: KeyboardMode) {
+    this.value_ = newValue;
+    gInput.setAttribute('data-keyboard-mode', newValue);
+  }
+};
 
 type EventWithKeys = Pick<KeyboardEvent, 'ctrlKey' | 'shiftKey' | 'altKey'>;
 
 type MaybeElement = Element | null | undefined;
-let filterIdleCallbackReference: number | null = null;
+let gFilterIdleCallbackReference: number | null = null;
 
 class ListItem {
   type: 'b' | 't';
@@ -31,8 +47,8 @@ class ListItem {
   }
 }
 
-let bookmarksAndTabs: ListItem[] = [];
-let currentTab: chrome.tabs.Tab | undefined;
+let gBookmarksAndTabs: ListItem[] = [];
+let gCurrentTab: chrome.tabs.Tab | undefined;
 
 async function readBookmarksAndTabsData() {
   const [_currentTab, allTabs, allBookmarks] = await Promise.all([
@@ -45,19 +61,19 @@ async function readBookmarksAndTabsData() {
     chrome.tabs.query({}),
     chrome.bookmarks.getTree()
   ]);
-  currentTab = _currentTab;
+  gCurrentTab = _currentTab;
 
   allTabs.forEach((t) => {
     if (!t.url) {
       return;
     }
 
-    bookmarksAndTabs.push(
+    gBookmarksAndTabs.push(
       new ListItem(
         't',
         t.title || t.url!.replace(/http(s)?:\/\//, '').substring(0, 50),
         t.url!,
-        !!t.id && t.id === currentTab?.id,
+        !!t.id && t.id === gCurrentTab?.id,
         t.id
       )
     );
@@ -87,18 +103,18 @@ function mapBookmarksTree(
       continue;
     }
 
-    bookmarksAndTabs.push(
+    gBookmarksAndTabs.push(
       new ListItem('b', prefix + node.title, node.url, false, node.id)
     );
   }
 }
 
 function searchBoxInputHandler() {
-  if (filterIdleCallbackReference !== null) {
-    cancelIdleCallback(filterIdleCallbackReference);
+  if (gFilterIdleCallbackReference !== null) {
+    cancelIdleCallback(gFilterIdleCallbackReference);
   }
-  filterIdleCallbackReference = requestIdleCallback(() => {
-    filterIdleCallbackReference = null;
+  gFilterIdleCallbackReference = requestIdleCallback(() => {
+    gFilterIdleCallbackReference = null;
     filterList();
   });
 }
@@ -106,11 +122,11 @@ function searchBoxInputHandler() {
 function filterList() {
   const fragment = document.createDocumentFragment();
 
-  const searchText = input.value.toLowerCase().trimStart();
+  const searchText = gInput.value.toLowerCase().trimStart();
   const searchTextLen = searchText.length;
 
   // const re = RegExp(searchText, 'gi');
-  bookmarksAndTabs.forEach((item, i) => {
+  gBookmarksAndTabs.forEach((item, i) => {
     if (searchTextLen > 0 && !item.title.toLowerCase().includes(searchText)) {
       return;
     }
@@ -157,7 +173,7 @@ function filterList() {
     (fragment.firstChild as HTMLLIElement).classList.add('active');
   }
 
-  searchResults.replaceChildren(fragment);
+  gSearchResults.replaceChildren(fragment);
 }
 
 async function openUrl(
@@ -229,7 +245,7 @@ function listClickHandler(ev: MouseEvent) {
 }
 
 function searchBoxKeydownHandler(ev: KeyboardEvent) {
-  switch (keyboardMode) {
+  switch (gKeyboardMode.value) {
     case 'vim-like':
       handleSearchBoxKeydownInVimLikeMode(ev);
       return;
@@ -249,7 +265,7 @@ function handleSearchBoxKeydownInVimLikeMode(ev: KeyboardEvent) {
   if (evCtrlKey) {
     switch (evKey) {
       case 'c':
-        searchBoxClearOrCancel(ev, input);
+        searchBoxClearOrCancel(ev, gInput);
         break;
 
       case 'c':
@@ -284,14 +300,14 @@ function _handleSearchBoxKey(
 
   switch (evKey) {
     case 'Enter': {
-      const li = searchResults.querySelector('li.active');
+      const li = gSearchResults.querySelector('li.active');
 
       searchBoxItemSelected(ev, li);
 
       return;
     }
     case 'Escape': {
-      searchBoxClearOrCancel(ev, input);
+      searchBoxClearOrCancel(ev, gInput);
 
       return;
     }
@@ -344,12 +360,12 @@ function _handleSearchBoxKey(
       break;
   }
 
-  if (document.activeElement !== input) {
-    input.focus();
+  if (document.activeElement !== gInput) {
+    gInput.focus();
   }
 }
 
-function searchBoxItemSelected(ev: EventWithKeys, li: Element | null) {
+function searchBoxItemSelected(ev: EventWithKeys, li: MaybeElement) {
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
@@ -372,14 +388,14 @@ function searchBoxClearOrCancel(
 function searchResultsMovePageUpDown(ev: Pick<KeyboardEvent, 'preventDefault' | 'key'>) {
   ev.preventDefault();
 
-  const len = searchResults.childElementCount;
+  const len = gSearchResults.childElementCount;
   if (len < 2) {
     return;
   }
 
   const PAGE_SIZE = 25;
 
-  const li = searchResults.querySelector('li.active');
+  const li = gSearchResults.querySelector('li.active');
   if (li instanceof HTMLLIElement) {
     li.classList.remove('active');
   }
@@ -388,15 +404,15 @@ function searchResultsMovePageUpDown(ev: Pick<KeyboardEvent, 'preventDefault' | 
 
   const isPageUp = ev.key === 'PageUp';
   if (isPageUp || ev.key === 'PageDown') {
-    for (let i = 0; i < searchResults.children.length; i++) {
-      if (searchResults.children[i] === li) {
+    for (let i = 0; i < gSearchResults.children.length; i++) {
+      if (gSearchResults.children[i] === li) {
         let newIdx: number;
         if (isPageUp) {
           newIdx = Math.max(0, i - PAGE_SIZE);
         } else {
           newIdx = Math.min(len - 1, i + PAGE_SIZE);
         }
-        newActiveElement = searchResults.children[newIdx] as Element;
+        newActiveElement = gSearchResults.children[newIdx] as Element;
         break;
       }
     }
@@ -411,24 +427,26 @@ function searchResultsMoveStartEnd(
   // maybe prevent default
   // ev.preventDefault();
 
-  if (searchResults.childElementCount < 2) {
+  if (gSearchResults.childElementCount < 2) {
     return;
   }
 
-  const li = searchResults.querySelector('li.active');
+  const li = gSearchResults.querySelector('li.active');
   if (li instanceof HTMLLIElement) {
     li.classList.remove('active');
   }
 
   const newActiveElement =
-    ev.key === 'Home' ? searchResults.firstElementChild : searchResults.lastElementChild;
+    ev.key === 'Home'
+      ? gSearchResults.firstElementChild
+      : gSearchResults.lastElementChild;
 
   setActiveLI(newActiveElement, 'nearest');
 }
 
 function searchResultsToggleCloseTab(ev: Pick<Event, 'preventDefault'>) {
   ev.preventDefault();
-  const li = searchResults.querySelector('li.active');
+  const li = gSearchResults.querySelector('li.active');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
@@ -440,7 +458,7 @@ function searchResultsToggleCloseTab(ev: Pick<Event, 'preventDefault'>) {
 function searchResultsCloseSelectedTab(ev: Pick<KeyboardEvent, 'preventDefault'>) {
   ev.preventDefault();
 
-  const li = searchResults.querySelector('li.active');
+  const li = gSearchResults.querySelector('li.active');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
@@ -453,19 +471,19 @@ function searchResultsMoveUpDown(
 ) {
   ev.preventDefault();
 
-  if (searchResults.childElementCount < 2) {
+  if (gSearchResults.childElementCount < 2) {
     return;
   }
 
   let _key = ev.key;
   if (_key === 'Tab') {
-    if (document.activeElement !== input) {
-      requestAnimationFrame(() => input.focus());
+    if (document.activeElement !== gInput) {
+      requestAnimationFrame(() => gInput.focus());
     }
     _key = ev.shiftKey ? 'ArrowUp' : 'ArrowDown';
   }
 
-  const li = searchResults.querySelector('li.active');
+  const li = gSearchResults.querySelector('li.active');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
@@ -473,8 +491,8 @@ function searchResultsMoveUpDown(
 
   const newActiveElement =
     _key === 'ArrowDown'
-      ? li.nextElementSibling || searchResults.firstElementChild
-      : li.previousElementSibling || searchResults.lastElementChild;
+      ? li.nextElementSibling || gSearchResults.firstElementChild
+      : li.previousElementSibling || gSearchResults.lastElementChild;
 
   setActiveLI(newActiveElement, 'center');
 }
@@ -518,7 +536,7 @@ async function closeTabAndSetClosestActive(li: HTMLLIElement) {
 }
 
 function setActiveLI(li: MaybeElement, block: ScrollLogicalPosition = 'center') {
-  li ??= searchResults.firstElementChild;
+  li ??= gSearchResults.firstElementChild;
 
   if (!li) {
     return;
@@ -563,13 +581,22 @@ function itemSelected(li: HTMLLIElement, ev: EventWithKeys) {
 
 readBookmarksAndTabsData().then(filterList);
 
-const input = document.getElementById('searchBox') as HTMLInputElement;
-const liTemplate = document.getElementById('result-item-template') as HTMLTemplateElement;
-const searchResults = document.querySelector('.searchResults ul') as HTMLUListElement;
+const gInput = document.getElementById('searchBox') as HTMLInputElement;
+const gLiTemplate = document.getElementById(
+  'result-item-template'
+) as HTMLTemplateElement;
+const gSearchResults = document.querySelector('.searchResults ul') as HTMLUListElement;
+
 (() => {
-  input.addEventListener('input', searchBoxInputHandler);
+  gKeyboardMode.value =
+    (localStorage.getItem('keyboard-mode') as KeyboardMode) || null || 'standard';
+
+  gInput.addEventListener('input', searchBoxInputHandler);
+
   document.addEventListener('keydown', searchBoxKeydownHandler);
-  searchResults.addEventListener('click', listClickHandler);
+
+  gSearchResults.addEventListener('click', listClickHandler);
+
   document.getElementById('showHelpBtn')!.addEventListener('click', () => {
     import('./help.js').then((help) => help.showHelp());
   });

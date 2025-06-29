@@ -66,28 +66,71 @@ function buildSettings() {
   const legend = document.createElement('legend');
   legend.textContent = 'Settings';
 
+  const themeEl = buildThemeSelect();
+  const keyboardModeEl = buildKeyboardModeSelect();
+
+  settingsEl.append(legend, themeEl, keyboardModeEl);
+
+  return settingsEl;
+}
+
+function buildKeyboardModeSelect(): HTMLElement {
+  const modes = [
+    { value: 'standard', name: 'Standard' },
+    { value: 'vim-like', name: 'Vim-like' }
+  ] as const satisfies Prettify<ValueName<KeyboardMode>>;
+
+  const select = document.createElement('select');
+  const label = document.createElement('label');
+  label.textContent = 'Keyboard Mode: ';
+
+  select.addEventListener('change', (ev) => {
+    const selectedMode = (ev.target as HTMLSelectElement).value;
+
+    gKeyboardMode.value = selectedMode as KeyboardMode;
+    localStorage.setItem('keyboard-mode', selectedMode);
+  });
+
+  label.appendChild(select);
+
+  const currMode = ((localStorage.getItem('keyboard-mode') as KeyboardMode) ||
+    null ||
+    'standard') satisfies KeyboardMode;
+
+  modes.forEach((mode) => {
+    const option = document.createElement('option');
+    option.value = mode.value;
+    option.textContent = mode.name;
+    if (mode.value === currMode) {
+      option.selected = true;
+    }
+    select.appendChild(option);
+  });
+  return label;
+}
+
+function buildThemeSelect(): HTMLElement {
   const themes = [
     { name: 'Light', value: 'light' },
     { name: 'Dark', value: 'dark' },
     { name: 'System', value: 'system' }
-  ];
+  ] as const satisfies Prettify<ValueName<Theme>>;
 
-  const themeSelect = document.createElement('select');
-  const themeLabel = document.createElement('label');
-  themeLabel.textContent = 'Theme:';
+  const select = document.createElement('select');
+  const label = document.createElement('label');
+  label.textContent = 'Theme: ';
 
-  themeSelect.addEventListener('change', (ev) => {
+  select.addEventListener('change', (ev) => {
     const selectedTheme = (ev.target as HTMLSelectElement).value;
 
     localStorage.setItem('theme', selectedTheme);
     // chrome.storage.local.set({ theme: selectedTheme });
-
     const newTheme = getTheme();
 
     document.documentElement.setAttribute('theme', newTheme);
   });
 
-  themeLabel.appendChild(themeSelect);
+  label.appendChild(select);
 
   // currTheme = document.documentElement.getAttribute('theme') || 'dark';
   // chrome.storage.local.get(['theme'], (result) => {
@@ -95,7 +138,6 @@ function buildSettings() {
   const currTheme = (localStorage.getItem('theme') || 'system') as Theme;
 
   // console.log('Current theme:', currTheme);
-
   themes.forEach((theme) => {
     const option = document.createElement('option');
     option.value = theme.value;
@@ -103,12 +145,9 @@ function buildSettings() {
     if (theme.value === currTheme) {
       option.selected = true;
     }
-    themeSelect.appendChild(option);
+    select.appendChild(option);
   });
-
-  settingsEl.append(legend, themeLabel);
-
-  return settingsEl;
+  return label;
 }
 
 function buildDescription(description: HelpData['description']) {

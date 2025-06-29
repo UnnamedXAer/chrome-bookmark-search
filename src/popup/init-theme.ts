@@ -1,9 +1,6 @@
-type Prettify<T> = {
-  [K in keyof T]: Prettify<T[K]>;
-} & {};
-
 type Theme = 'light' | 'dark' | 'system';
 type UsableTheme = Prettify<Exclude<Theme, 'system'>>;
+
 const getTheme = (): UsableTheme => {
   const cachedTheme = localStorage.getItem('theme') as Theme | null;
 

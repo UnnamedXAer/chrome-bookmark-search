@@ -103,6 +103,14 @@ main {
   width: 100%;
 }
 
+#searchBox[data-keyboard-mode='vim-like'] {
+  background-color: rgba(24, 160, 244, 0.304);
+}
+
+/* #searchBox[data-keyboard-mode="insert"] {
+  background-color: #9c660ea4;
+} */
+
 #showHelpBtn {
   color: var(--btn-fg-color);
   cursor: pointer;
