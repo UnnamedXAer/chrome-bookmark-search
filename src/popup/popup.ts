@@ -1,3 +1,11 @@
+type KeyboardMode = 'standard' | 'vim-like';
+type KeyboardVimMode = 'insert'; // for now let's keep it simple
+let keyboardVimMode: KeyboardVimMode = 'insert';
+
+let keyboardMode: KeyboardMode = 'standard';
+
+type EventWithKeys = Pick<KeyboardEvent, 'ctrlKey' | 'shiftKey' | 'altKey'>;
+
 type MaybeElement = Element | null | undefined;
 let filterIdleCallbackReference: number | null = null;
 
@@ -221,147 +229,254 @@ function listClickHandler(ev: MouseEvent) {
 }
 
 function searchBoxKeydownHandler(ev: KeyboardEvent) {
-  switch (ev.key) {
+  switch (keyboardMode) {
+    case 'vim-like':
+      handleSearchBoxKeydownInVimLikeMode(ev);
+      return;
+
+    case 'standard':
+    // fallthrough
+    default:
+      handleSearchBoxKeydownInStandardMode(ev);
+      break;
+  }
+}
+function handleSearchBoxKeydownInVimLikeMode(ev: KeyboardEvent) {
+  const evKey = ev.key;
+  const evAltKey = ev.altKey;
+  const evCtrlKey = ev.ctrlKey;
+
+  if (evCtrlKey) {
+    switch (evKey) {
+      case 'c':
+        searchBoxClearOrCancel(ev, input);
+        break;
+
+      case 'c':
+        // ha(input, ev);
+        break;
+    }
+    return;
+  }
+
+  handleSearchBoxKeydownInStandardMode(ev);
+
+  // case 'Enter':
+  // case 'Escape':
+  // case 'Tab':
+  // case 'w':
+  // case 'ArrowUp':
+  // case 'ArrowDown':
+  // case 'Home':
+  // case 'End':
+  // case 'PageDown':
+  // case 'PageUp':
+}
+
+function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
+  _handleSearchBoxKey(ev);
+}
+
+function _handleSearchBoxKey(
+  ev: EventWithKeys & Pick<KeyboardEvent, 'key' | 'preventDefault'>
+) {
+  const { key: evKey, altKey: evAltKey, ctrlKey: evCtrlKey, shiftKey: evShiftKey } = ev;
+
+  switch (evKey) {
     case 'Enter': {
       const li = searchResults.querySelector('li.active');
-      if (!(li instanceof HTMLLIElement)) {
-        break;
-      }
 
-      itemSelected(li, ev);
-      break;
+      searchBoxItemSelected(ev, li);
+
+      return;
     }
     case 'Escape': {
-      if (input.value) {
-        input.focus();
-        input.value = '';
-        searchBoxInputHandler();
-        ev.preventDefault();
-      }
-      break;
+      searchBoxClearOrCancel(ev, input);
+
+      return;
     }
     case 'c': {
-      if (!ev.altKey) {
+      if (!evAltKey) {
         break;
       }
 
-      const li = searchResults.querySelector('li.active');
-      if (!(li instanceof HTMLLIElement)) {
-        break;
-      }
+      searchResultsToggleCloseTab(ev);
 
-      li.toggleAttribute('data-close-tab');
-      break;
+      return;
     }
     case 'w': {
-      if (!ev.ctrlKey) {
-        break;
-      }
-      ev.preventDefault();
-
-      const li = searchResults.querySelector('li.active');
-      if (!(li instanceof HTMLLIElement)) {
+      if (!evCtrlKey) {
         break;
       }
 
-      closeTabAndSetClosestActive(li);
-      break;
+      searchResultsCloseSelectedTab(ev);
+
+      return;
     }
     case 'Tab':
     case 'ArrowUp':
     case 'ArrowDown': {
-      if (ev.ctrlKey) {
+      if (evCtrlKey) {
         break;
       }
 
-      ev.preventDefault();
+      searchResultsMoveUpDown(ev);
 
-      if (searchResults.childElementCount < 2) {
-        break;
-      }
-
-      let key = ev.key;
-      if (key === 'Tab') {
-        if (document.activeElement !== input) {
-          requestAnimationFrame(() => input.focus());
-        }
-        key = ev.shiftKey ? 'ArrowUp' : 'ArrowDown';
-      }
-
-      const li = searchResults.querySelector('li.active');
-      if (!(li instanceof HTMLLIElement)) {
-        break;
-      }
-      li.classList.remove('active');
-
-      const newActiveElement =
-        key === 'ArrowDown'
-          ? li.nextElementSibling || searchResults.firstElementChild
-          : li.previousElementSibling || searchResults.lastElementChild;
-
-      setActiveLI(newActiveElement, 'center');
-      break;
+      return;
     }
     case 'Home':
     case 'End': {
-      if (!ev.ctrlKey || searchResults.childElementCount < 2) {
+      if (!evCtrlKey) {
         break;
       }
-      const li = searchResults.querySelector('li.active');
-      if (li instanceof HTMLLIElement) {
-        li.classList.remove('active');
-      }
 
-      const newActiveElement =
-        ev.key === 'Home'
-          ? searchResults.firstElementChild
-          : searchResults.lastElementChild;
+      searchResultsMoveStartEnd(ev);
 
-      setActiveLI(newActiveElement, 'nearest');
-      break;
+      return;
     }
     case 'PageDown':
-    case 'PageUp':
-      ev.preventDefault();
-      const len = searchResults.childElementCount;
-      if (len < 2) {
-        break;
-      }
+    case 'PageUp': {
+      searchResultsMovePageUpDown(ev);
 
-      const PAGE_SIZE = 25;
-
-      const li = searchResults.querySelector('li.active');
-      if (li instanceof HTMLLIElement) {
-        li.classList.remove('active');
-      }
-
-      let newActiveElement: MaybeElement;
-
-      const isPageUp = ev.key === 'PageUp';
-      if (isPageUp || ev.key === 'PageDown') {
-        for (let i = 0; i < searchResults.children.length; i++) {
-          if (searchResults.children[i] === li) {
-            let newIdx: number;
-            if (isPageUp) {
-              newIdx = Math.max(0, i - PAGE_SIZE);
-            } else {
-              newIdx = Math.min(len - 1, i + PAGE_SIZE);
-            }
-            newActiveElement = searchResults.children[newIdx] as Element;
-            break;
-          }
-        }
-      }
-
-      setActiveLI(newActiveElement, isPageUp ? 'end' : 'start');
-
-      break;
+      return;
+    }
     default:
-      if (document.activeElement !== input) {
-        input.focus();
-      }
       break;
   }
+
+  if (document.activeElement !== input) {
+    input.focus();
+  }
+}
+
+function searchBoxItemSelected(ev: EventWithKeys, li: Element | null) {
+  if (!(li instanceof HTMLLIElement)) {
+    return;
+  }
+
+  itemSelected(li, ev);
+}
+
+function searchBoxClearOrCancel(
+  ev: Pick<Event, 'preventDefault'>,
+  input: HTMLInputElement
+) {
+  if (input.value) {
+    input.focus();
+    input.value = '';
+    searchBoxInputHandler();
+    ev.preventDefault();
+  }
+}
+
+function searchResultsMovePageUpDown(ev: Pick<KeyboardEvent, 'preventDefault' | 'key'>) {
+  ev.preventDefault();
+
+  const len = searchResults.childElementCount;
+  if (len < 2) {
+    return;
+  }
+
+  const PAGE_SIZE = 25;
+
+  const li = searchResults.querySelector('li.active');
+  if (li instanceof HTMLLIElement) {
+    li.classList.remove('active');
+  }
+
+  let newActiveElement: MaybeElement;
+
+  const isPageUp = ev.key === 'PageUp';
+  if (isPageUp || ev.key === 'PageDown') {
+    for (let i = 0; i < searchResults.children.length; i++) {
+      if (searchResults.children[i] === li) {
+        let newIdx: number;
+        if (isPageUp) {
+          newIdx = Math.max(0, i - PAGE_SIZE);
+        } else {
+          newIdx = Math.min(len - 1, i + PAGE_SIZE);
+        }
+        newActiveElement = searchResults.children[newIdx] as Element;
+        break;
+      }
+    }
+  }
+
+  setActiveLI(newActiveElement, isPageUp ? 'end' : 'start');
+}
+
+function searchResultsMoveStartEnd(
+  ev: Pick<KeyboardEvent, 'preventDefault' | 'key' | 'ctrlKey'>
+) {
+  // maybe prevent default
+  // ev.preventDefault();
+
+  if (searchResults.childElementCount < 2) {
+    return;
+  }
+
+  const li = searchResults.querySelector('li.active');
+  if (li instanceof HTMLLIElement) {
+    li.classList.remove('active');
+  }
+
+  const newActiveElement =
+    ev.key === 'Home' ? searchResults.firstElementChild : searchResults.lastElementChild;
+
+  setActiveLI(newActiveElement, 'nearest');
+}
+
+function searchResultsToggleCloseTab(ev: Pick<Event, 'preventDefault'>) {
+  ev.preventDefault();
+  const li = searchResults.querySelector('li.active');
+  if (!(li instanceof HTMLLIElement)) {
+    return;
+  }
+
+  // TODO: we should not allow to mark bookmarks for closing
+  li.toggleAttribute('data-close-tab');
+}
+
+function searchResultsCloseSelectedTab(ev: Pick<KeyboardEvent, 'preventDefault'>) {
+  ev.preventDefault();
+
+  const li = searchResults.querySelector('li.active');
+  if (!(li instanceof HTMLLIElement)) {
+    return;
+  }
+
+  closeTabAndSetClosestActive(li);
+}
+
+function searchResultsMoveUpDown(
+  ev: Pick<KeyboardEvent, 'preventDefault' | 'key' | 'shiftKey'>
+) {
+  ev.preventDefault();
+
+  if (searchResults.childElementCount < 2) {
+    return;
+  }
+
+  let _key = ev.key;
+  if (_key === 'Tab') {
+    if (document.activeElement !== input) {
+      requestAnimationFrame(() => input.focus());
+    }
+    _key = ev.shiftKey ? 'ArrowUp' : 'ArrowDown';
+  }
+
+  const li = searchResults.querySelector('li.active');
+  if (!(li instanceof HTMLLIElement)) {
+    return;
+  }
+  li.classList.remove('active');
+
+  const newActiveElement =
+    _key === 'ArrowDown'
+      ? li.nextElementSibling || searchResults.firstElementChild
+      : li.previousElementSibling || searchResults.lastElementChild;
+
+  setActiveLI(newActiveElement, 'center');
 }
 
 async function closeTabIfNotCurrent(tabId?: number) {
@@ -422,12 +537,16 @@ function getTabIdFromLI(li: HTMLLIElement): number | undefined {
   return +dataTabId;
 }
 
-function itemSelected(li: HTMLLIElement, ev: KeyboardEvent | MouseEvent) {
+function itemSelected(li: HTMLLIElement, ev: EventWithKeys) {
   const url = li.getAttribute('data-url')!;
+  // TODO: that doesn't work because we get empty string if attribute is present
+  // additionally we should use querySelector to get all active elements
+  // and close them all or do not allow to mark more than one tab for closing
   const closeTab = li.getAttribute('data-close-tab');
   let tabId = getTabIdFromLI(li);
 
   if (tabId && closeTab) {
+    // maybe we should just close the marked tabs
     chrome.tabs.remove(tabId).catch((err) => {
       console.log({ err });
     });
