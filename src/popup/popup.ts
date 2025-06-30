@@ -119,7 +119,6 @@ function filterList() {
   const searchText = gInput.value.toLowerCase().trimStart();
   const searchTextLen = searchText.length;
 
-  // const re = RegExp(searchText, 'gi');
   gBookmarksAndTabs.forEach((item, i) => {
     if (searchTextLen > 0 && !item.title.toLowerCase().includes(searchText)) {
       return;
@@ -292,12 +291,6 @@ function handleSearchBoxKeydownInVimLikeMode(ev: KeyboardEvent) {
 }
 
 function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
-  _handleSearchBoxKey(ev);
-}
-
-function _handleSearchBoxKey(
-  ev: EventMetaKeys & Pick<KeyboardEvent, 'key' | 'preventDefault'>
-) {
   const { key: evKey, altKey: evAltKey, ctrlKey: evCtrlKey, shiftKey: evShiftKey } = ev;
 
   switch (evKey) {
@@ -377,7 +370,6 @@ function _handleSearchBoxKey(
 }
 
 function getOpenUrlConfig(ev: EventMetaKeys, keyboardMode: KeyboardMode): OpenUrlConfig {
-  debugger;
   if (keyboardMode === KEYBOARD_MODE.standardWithVimLike) {
     return {
       newTab: ev.altKey,
@@ -487,19 +479,19 @@ function searchResultsMoveStartEnd(
 
 function searchResultsToggleCloseTab(ev: Pick<Event, 'preventDefault'>) {
   ev.preventDefault();
-  const li = gSearchResults.querySelector('li.active');
+  // must be a tab, not bookmark.
+  const li = gSearchResults.querySelector('li.active.t');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
 
-  // TODO: we should not allow to mark bookmarks for closing
   li.toggleAttribute('data-close-tab');
 }
 
 function searchResultsCloseSelectedTab(ev: Pick<KeyboardEvent, 'preventDefault'>) {
   ev.preventDefault();
 
-  const li = gSearchResults.querySelector('li.active');
+  const li = gSearchResults.querySelector('li.active.t');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
@@ -549,6 +541,15 @@ async function closeTabIfNotCurrent(tabId?: number) {
       active: true,
       lastFocusedWindow: true
     });
+
+    const li = gSearchResults.querySelector<HTMLLIElement>('li.active.currTab');
+    const activeTabId = li ? getTabIdFromLI(li) : void 0;
+    if (currentTab.id !== activeTabId) {
+      debugger;
+      throw Error(
+        'API returned different active tab: ' + currentTab.id + ' != ' + activeTabId
+      );
+    }
 
     if (currentTab && currentTab.id === tabId) {
       return;
@@ -603,19 +604,41 @@ function itemSelected(li: HTMLLIElement, config: OpenUrlConfig) {
   // TODO: that doesn't work because we get empty string if attribute is present
   // additionally we should use querySelector to get all active elements
   // and close them all or do not allow to mark more than one tab for closing
-  const closeTab = li.getAttribute('data-close-tab');
+
+  // const closeTab = li.getAttribute('data-close-tab') !== null;
+  // const isCurrentTab = li.classList.contains('currTab');
   let tabId = getTabIdFromLI(li);
 
-  if (tabId && closeTab) {
-    // maybe we should just close the marked tabs
-    chrome.tabs.remove(tabId).catch((err) => {
-      console.log({ err });
-    });
-    tabId = void 0;
-  }
+  // if (closeTab) {
+  //   if ( || (!config.newTab && !config.newWindow)) {
+
+  //     gSearchResults
+  //       .querySelector<HTMLLIElement>('li.t.currTab')
+  //       ?.removeAttribute('data-close-tab');
+
+  //   } else {
+  //     tabId = void 0;
+  //   }
+  // }
+
+  // closeMarkedTabs();
 
   return openUrl(url, tabId, config);
 }
+
+// function closeMarkedTabs() {
+//   const markedToClose =
+//     gSearchResults.querySelectorAll<HTMLLIElement>('li[data-close-tab]');
+
+//   [...markedToClose].forEach((li) => {
+//     let tabId = getTabIdFromLI(li);
+//     if (tabId) {
+//       chrome.tabs.remove(tabId).catch((err) => {
+//         console.log({ err });
+//       });
+//     }
+//   });
+// }
 
 function toggleDocumentKeydownHandler(action: 'add' | 'remove') {
   if (action === 'add') {
