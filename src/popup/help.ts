@@ -1,33 +1,33 @@
+type ShortcutsHelp = Record<string, string>;
 type HelpData = {
-  shortcuts: Record<string, string>;
+  shortcuts: ShortcutsHelp;
+  shortcutsStandardWithVimLike: ShortcutsHelp;
   description: string;
 };
 
-export async function showHelp() {
+export async function showHelp(closeCallback: () => void) {
   const helpInfo = await loadHelp();
   const helpDialog = buildHelp(helpInfo);
   document.body.appendChild(helpDialog);
 
-  showDialog(helpDialog);
+  showDialog(helpDialog, closeCallback);
 }
 
-function closeDialog(dialog: HTMLDialogElement) {
-  return dialog.close();
-}
-
-function showDialog(dialog: HTMLDialogElement) {
+function showDialog(dialog: HTMLDialogElement, callback: () => void) {
   function withDialogDocumentKeydownHandler(ev: KeyboardEvent) {
-    ev.preventDefault();
-    ev.stopImmediatePropagation();
+    if (ev.key === 'Escape' || (ev.ctrlKey && ev.key === 'c')) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
 
-    if (ev.key !== 'Escape') {
-      return;
+      document.removeEventListener('keydown', withDialogDocumentKeydownHandler, true);
+
+      dialog.close();
+      callback();
     }
-    document.removeEventListener('keydown', withDialogDocumentKeydownHandler, true);
-    dialog.close();
   }
 
   document.addEventListener('keydown', withDialogDocumentKeydownHandler, true);
+
   return dialog.showModal();
 }
 
@@ -41,21 +41,17 @@ function buildHelp(helpInfo: HelpData) {
   dialog.id = 'helpDialog';
   const settings = buildSettings();
   const desc = buildDescription(helpInfo.description);
-  const shortcuts = buildShortcutsTable(helpInfo.shortcuts);
+  const shortcuts = buildShortcutsTables(
+    helpInfo.shortcuts,
+    helpInfo.shortcutsStandardWithVimLike
+  );
   dialog.append(
     desc,
     document.createElement('hr'),
     settings,
     document.createElement('hr'),
-    shortcuts
+    ...shortcuts
   );
-
-  dialog.addEventListener('keydown', function (ev) {
-    ev.preventDefault();
-    if (ev.key === 'Esc') {
-      closeDialog(this);
-    }
-  });
 
   return dialog;
 }
@@ -76,9 +72,9 @@ function buildSettings() {
 
 function buildKeyboardModeSelect(): HTMLElement {
   const modes = [
-    { value: 'standard', name: 'Standard' },
-    { value: 'vim-like', name: 'Vim-like' }
-  ] as const satisfies Prettify<ValueName<KeyboardMode>>;
+    { value: KEYBOARD_MODE.standard, name: 'Standard' },
+    { value: KEYBOARD_MODE.standardWithVimLike, name: 'Standard with vim like' }
+  ] as const satisfies { value: KeyboardMode; name: string }[];
 
   const select = document.createElement('select');
   const label = document.createElement('label');
@@ -87,7 +83,12 @@ function buildKeyboardModeSelect(): HTMLElement {
   select.addEventListener('change', (ev) => {
     const selectedMode = (ev.target as HTMLSelectElement).value;
 
-    gKeyboardMode.value = selectedMode as KeyboardMode;
+    gKeyboardMode = selectedMode as KeyboardMode;
+
+    updateStandardWithVimLikeShortcutTableDisplay(
+      document.querySelector('dialog #shortcutsStandardWithVimLike') as HTMLElement
+    );
+
     localStorage.setItem('keyboard-mode', selectedMode);
   });
 
@@ -95,7 +96,7 @@ function buildKeyboardModeSelect(): HTMLElement {
 
   const currMode = ((localStorage.getItem('keyboard-mode') as KeyboardMode) ||
     null ||
-    'standard') satisfies KeyboardMode;
+    KEYBOARD_MODE.standard) satisfies KeyboardMode;
 
   modes.forEach((mode) => {
     const option = document.createElement('option');
@@ -107,6 +108,13 @@ function buildKeyboardModeSelect(): HTMLElement {
     select.appendChild(option);
   });
   return label;
+}
+
+function updateStandardWithVimLikeShortcutTableDisplay(table: HTMLElement) {
+  table.style.display = gKeyboardMode === KEYBOARD_MODE.standardWithVimLike ? '' : 'none';
+  if (table.previousElementSibling?.tagName === 'HR') {
+    (table.previousElementSibling as HTMLElement).style.display = table.style.display;
+  }
 }
 
 function buildThemeSelect(): HTMLElement {
@@ -132,9 +140,7 @@ function buildThemeSelect(): HTMLElement {
 
   label.appendChild(select);
 
-  // currTheme = document.documentElement.getAttribute('theme') || 'dark';
   // chrome.storage.local.get(['theme'], (result) => {
-  // const theme = result.theme || 'dark';
   const currTheme = (localStorage.getItem('theme') || 'system') as Theme;
 
   // console.log('Current theme:', currTheme);
@@ -156,7 +162,25 @@ function buildDescription(description: HelpData['description']) {
   return description;
 }
 
-function buildShortcutsTable(shortcuts: HelpData['shortcuts']) {
+function buildShortcutsTables(
+  shortcuts: HelpData['shortcuts'],
+  shortcutsStandardWithVimLike: HelpData['shortcutsStandardWithVimLike']
+) {
+  const shortcutsTables: HTMLElement[] = [_buildShortcutsTable(shortcuts)];
+
+  const standardWithVimLikeShortcutsTable = _buildShortcutsTable(
+    shortcutsStandardWithVimLike
+  );
+  standardWithVimLikeShortcutsTable.id = 'shortcutsStandardWithVimLike';
+
+  shortcutsTables.push(document.createElement('hr'), standardWithVimLikeShortcutsTable);
+
+  updateStandardWithVimLikeShortcutTableDisplay(standardWithVimLikeShortcutsTable);
+
+  return shortcutsTables;
+}
+
+function _buildShortcutsTable(shortcuts: ShortcutsHelp) {
   const table = document.createElement('table');
   for (const shortcut in shortcuts) {
     const tr = document.createElement('tr');

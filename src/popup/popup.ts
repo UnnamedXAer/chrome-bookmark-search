@@ -6,21 +6,15 @@ type ValueName<K extends string> = (K extends infer X
   ? { value: X; name: X extends string ? Capitalize<X> : never }
   : never)[];
 
-type KeyboardMode = 'standard' | 'vim-like';
-type KeyboardVimMode = 'insert'; // for now let's keep it simple
-let gKeyboardVimMode: KeyboardVimMode = 'insert';
-let gKeyboardMode = {
-  value_: 'standard' as KeyboardMode,
-  get value() {
-    return this.value_;
-  },
-  set value(newValue: KeyboardMode) {
-    this.value_ = newValue;
-    gInput.setAttribute('data-keyboard-mode', newValue);
-  }
-};
+const KEYBOARD_MODE = {
+  standard: 'standard',
+  standardWithVimLike: 'standardWithVimLike'
+} as const;
 
-type EventWithKeys = Pick<KeyboardEvent, 'ctrlKey' | 'shiftKey' | 'altKey'>;
+type KeyboardMode = keyof typeof KEYBOARD_MODE;
+let gKeyboardMode: KeyboardMode = KEYBOARD_MODE.standard;
+
+type EventMetaKeys = Pick<KeyboardEvent, 'ctrlKey' | 'shiftKey' | 'altKey'>;
 
 type MaybeElement = Element | null | undefined;
 let gFilterIdleCallbackReference: number | null = null;
@@ -176,25 +170,23 @@ function filterList() {
   gSearchResults.replaceChildren(fragment);
 }
 
-async function openUrl(
-  url: string,
-  config: {
-    tabId?: number;
-    forceInCurrentTab?: boolean;
-    newTab?: boolean;
-    newWindow?: boolean;
-  } = {}
-) {
+interface OpenUrlConfig {
+  forceInCurrentTab?: boolean;
+  newTab?: boolean;
+  newWindow?: boolean;
+}
+
+async function openUrl(url: string, tabId?: number, config: OpenUrlConfig = {}) {
   if (config.forceInCurrentTab) {
     await openUrlInCurrentTab(url);
     // no-wait
-    closeTabIfNotCurrent(config.tabId);
+    closeTabIfNotCurrent(tabId);
   } else if (config.newWindow) {
     await createNewWindowWithUrl(url, true);
   } else if (config.newTab) {
     await createNewTabWithUrl(url, true);
-  } else if (config.tabId !== void 0) {
-    await focusOnTab(config.tabId);
+  } else if (tabId !== void 0) {
+    await focusOnTab(tabId);
   } else {
     await openUrlInCurrentTab(url);
   }
@@ -241,52 +233,62 @@ function listClickHandler(ev: MouseEvent) {
     return;
   }
 
-  itemSelected(ev.target, ev);
+  const openUrlConfig = getOpenUrlConfig(ev, KEYBOARD_MODE.standard);
+  itemSelected(ev.target, openUrlConfig);
 }
 
-function searchBoxKeydownHandler(ev: KeyboardEvent) {
-  switch (gKeyboardMode.value) {
-    case 'vim-like':
+function handleDocumentKeydown(ev: KeyboardEvent) {
+  switch (gKeyboardMode) {
+    case KEYBOARD_MODE.standardWithVimLike:
       handleSearchBoxKeydownInVimLikeMode(ev);
       return;
 
-    case 'standard':
+    case KEYBOARD_MODE.standard:
     // fallthrough
     default:
       handleSearchBoxKeydownInStandardMode(ev);
-      break;
+      return;
   }
 }
 function handleSearchBoxKeydownInVimLikeMode(ev: KeyboardEvent) {
-  const evKey = ev.key;
-  const evAltKey = ev.altKey;
-  const evCtrlKey = ev.ctrlKey;
-
-  if (evCtrlKey) {
-    switch (evKey) {
+  if (ev.ctrlKey) {
+    switch (ev.key) {
       case 'c':
         searchBoxClearOrCancel(ev, gInput);
-        break;
+        return;
 
-      case 'c':
-        // ha(input, ev);
-        break;
+      case 'j':
+        searchResultsMoveUpDown(ev, 'ArrowDown', false);
+        return;
+
+      case 'k':
+        searchResultsMoveUpDown(ev, 'ArrowUp', false);
+        return;
+
+      case 'd':
+        searchResultsMovePageUpDown(ev, 'PageDown');
+        return;
+
+      case 'u':
+        searchResultsMovePageUpDown(ev, 'PageUp');
+        return;
+
+      case 'g':
+        searchResultsMoveStartEnd(ev, 'Home', true);
+        return;
+
+      case 'G':
+        searchResultsMoveStartEnd(ev, 'End', true);
+        return;
+
+      case 'y':
+      case 'Y':
+        searchBoxItemSelected(ev);
+        return;
     }
-    return;
   }
 
   handleSearchBoxKeydownInStandardMode(ev);
-
-  // case 'Enter':
-  // case 'Escape':
-  // case 'Tab':
-  // case 'w':
-  // case 'ArrowUp':
-  // case 'ArrowDown':
-  // case 'Home':
-  // case 'End':
-  // case 'PageDown':
-  // case 'PageUp':
 }
 
 function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
@@ -294,15 +296,13 @@ function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
 }
 
 function _handleSearchBoxKey(
-  ev: EventWithKeys & Pick<KeyboardEvent, 'key' | 'preventDefault'>
+  ev: EventMetaKeys & Pick<KeyboardEvent, 'key' | 'preventDefault'>
 ) {
   const { key: evKey, altKey: evAltKey, ctrlKey: evCtrlKey, shiftKey: evShiftKey } = ev;
 
   switch (evKey) {
     case 'Enter': {
-      const li = gSearchResults.querySelector('li.active');
-
-      searchBoxItemSelected(ev, li);
+      searchBoxItemSelected(ev);
 
       return;
     }
@@ -329,6 +329,17 @@ function _handleSearchBoxKey(
 
       return;
     }
+
+    case 's': {
+      if (evCtrlKey) {
+        break;
+      }
+
+      ev.preventDefault();
+
+      return;
+    }
+
     case 'Tab':
     case 'ArrowUp':
     case 'ArrowDown': {
@@ -336,7 +347,7 @@ function _handleSearchBoxKey(
         break;
       }
 
-      searchResultsMoveUpDown(ev);
+      searchResultsMoveUpDown(ev, evKey, evShiftKey);
 
       return;
     }
@@ -346,13 +357,13 @@ function _handleSearchBoxKey(
         break;
       }
 
-      searchResultsMoveStartEnd(ev);
+      searchResultsMoveStartEnd(ev, evKey, evCtrlKey);
 
       return;
     }
     case 'PageDown':
     case 'PageUp': {
-      searchResultsMovePageUpDown(ev);
+      searchResultsMovePageUpDown(ev, evKey);
 
       return;
     }
@@ -365,12 +376,32 @@ function _handleSearchBoxKey(
   }
 }
 
-function searchBoxItemSelected(ev: EventWithKeys, li: MaybeElement) {
+function getOpenUrlConfig(ev: EventMetaKeys, keyboardMode: KeyboardMode): OpenUrlConfig {
+  debugger;
+  if (keyboardMode === KEYBOARD_MODE.standardWithVimLike) {
+    return {
+      newTab: ev.altKey,
+      newWindow: ev.shiftKey,
+      forceInCurrentTab: ev.shiftKey && ev.altKey
+    };
+  }
+
+  return {
+    newTab: ev.ctrlKey,
+    newWindow: ev.shiftKey,
+    forceInCurrentTab: ev.shiftKey && ev.ctrlKey
+  };
+}
+
+function searchBoxItemSelected(ev: EventMetaKeys) {
+  const li = gSearchResults.querySelector('li.active');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
 
-  itemSelected(li, ev);
+  const openUrlConfig = getOpenUrlConfig(ev, gKeyboardMode);
+
+  itemSelected(li, openUrlConfig);
 }
 
 function searchBoxClearOrCancel(
@@ -382,10 +413,19 @@ function searchBoxClearOrCancel(
     input.value = '';
     searchBoxInputHandler();
     ev.preventDefault();
+    return;
+  }
+
+  if (gKeyboardMode === KEYBOARD_MODE.standardWithVimLike) {
+    ev.preventDefault();
+    window.close();
   }
 }
 
-function searchResultsMovePageUpDown(ev: Pick<KeyboardEvent, 'preventDefault' | 'key'>) {
+function searchResultsMovePageUpDown(
+  ev: Pick<KeyboardEvent, 'preventDefault'>,
+  evKey: KeyboardEvent['key']
+) {
   ev.preventDefault();
 
   const len = gSearchResults.childElementCount;
@@ -402,8 +442,8 @@ function searchResultsMovePageUpDown(ev: Pick<KeyboardEvent, 'preventDefault' | 
 
   let newActiveElement: MaybeElement;
 
-  const isPageUp = ev.key === 'PageUp';
-  if (isPageUp || ev.key === 'PageDown') {
+  const isPageUp = evKey === 'PageUp';
+  if (isPageUp || evKey === 'PageDown') {
     for (let i = 0; i < gSearchResults.children.length; i++) {
       if (gSearchResults.children[i] === li) {
         let newIdx: number;
@@ -422,10 +462,13 @@ function searchResultsMovePageUpDown(ev: Pick<KeyboardEvent, 'preventDefault' | 
 }
 
 function searchResultsMoveStartEnd(
-  ev: Pick<KeyboardEvent, 'preventDefault' | 'key' | 'ctrlKey'>
+  ev: Pick<KeyboardEvent, 'preventDefault'>,
+  evKey: KeyboardEvent['key'],
+  evCtrlKey: KeyboardEvent['ctrlKey']
 ) {
-  // maybe prevent default
-  // ev.preventDefault();
+  if (evCtrlKey) {
+    ev.preventDefault();
+  }
 
   if (gSearchResults.childElementCount < 2) {
     return;
@@ -437,9 +480,7 @@ function searchResultsMoveStartEnd(
   }
 
   const newActiveElement =
-    ev.key === 'Home'
-      ? gSearchResults.firstElementChild
-      : gSearchResults.lastElementChild;
+    evKey === 'Home' ? gSearchResults.firstElementChild : gSearchResults.lastElementChild;
 
   setActiveLI(newActiveElement, 'nearest');
 }
@@ -467,7 +508,9 @@ function searchResultsCloseSelectedTab(ev: Pick<KeyboardEvent, 'preventDefault'>
 }
 
 function searchResultsMoveUpDown(
-  ev: Pick<KeyboardEvent, 'preventDefault' | 'key' | 'shiftKey'>
+  ev: Pick<KeyboardEvent, 'preventDefault'>,
+  evKey: KeyboardEvent['key'],
+  evShiftKey: KeyboardEvent['shiftKey']
 ) {
   ev.preventDefault();
 
@@ -475,12 +518,12 @@ function searchResultsMoveUpDown(
     return;
   }
 
-  let _key = ev.key;
+  let _key = evKey;
   if (_key === 'Tab') {
     if (document.activeElement !== gInput) {
       requestAnimationFrame(() => gInput.focus());
     }
-    _key = ev.shiftKey ? 'ArrowUp' : 'ArrowDown';
+    _key = evShiftKey ? 'ArrowUp' : 'ArrowDown';
   }
 
   const li = gSearchResults.querySelector('li.active');
@@ -555,7 +598,7 @@ function getTabIdFromLI(li: HTMLLIElement): number | undefined {
   return +dataTabId;
 }
 
-function itemSelected(li: HTMLLIElement, ev: EventWithKeys) {
+function itemSelected(li: HTMLLIElement, config: OpenUrlConfig) {
   const url = li.getAttribute('data-url')!;
   // TODO: that doesn't work because we get empty string if attribute is present
   // additionally we should use querySelector to get all active elements
@@ -571,12 +614,15 @@ function itemSelected(li: HTMLLIElement, ev: EventWithKeys) {
     tabId = void 0;
   }
 
-  return openUrl(url, {
-    newTab: ev.ctrlKey,
-    newWindow: ev.shiftKey,
-    forceInCurrentTab: ev.shiftKey && ev.ctrlKey,
-    tabId
-  });
+  return openUrl(url, tabId, config);
+}
+
+function toggleDocumentKeydownHandler(action: 'add' | 'remove') {
+  if (action === 'add') {
+    document.addEventListener('keydown', handleDocumentKeydown);
+  } else if (action === 'remove') {
+    document.removeEventListener('keydown', handleDocumentKeydown);
+  }
 }
 
 readBookmarksAndTabsData().then(filterList);
@@ -588,16 +634,21 @@ const gLiTemplate = document.getElementById(
 const gSearchResults = document.querySelector('.searchResults ul') as HTMLUListElement;
 
 (() => {
-  gKeyboardMode.value =
-    (localStorage.getItem('keyboard-mode') as KeyboardMode) || null || 'standard';
+  gKeyboardMode =
+    (localStorage.getItem('keyboard-mode') as KeyboardMode) ||
+    null ||
+    KEYBOARD_MODE.standard;
 
   gInput.addEventListener('input', searchBoxInputHandler);
 
-  document.addEventListener('keydown', searchBoxKeydownHandler);
+  toggleDocumentKeydownHandler('add');
 
   gSearchResults.addEventListener('click', listClickHandler);
 
   document.getElementById('showHelpBtn')!.addEventListener('click', () => {
-    import('./help.js').then((help) => help.showHelp());
+    import('./help.js').then((help) => {
+      toggleDocumentKeydownHandler('remove');
+      help.showHelp(() => toggleDocumentKeydownHandler('add'));
+    });
   });
 })();
