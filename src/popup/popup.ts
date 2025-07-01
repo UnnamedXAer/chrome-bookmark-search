@@ -335,7 +335,7 @@ function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
     }
 
     case 's': {
-      if (evCtrlKey) {
+      if (!evCtrlKey) {
         break;
       }
 
