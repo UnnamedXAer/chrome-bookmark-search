@@ -15,7 +15,7 @@ export async function showHelp(closeCallback: () => void) {
 
 function showDialog(dialog: HTMLDialogElement, callback: () => void) {
   function withDialogDocumentKeydownHandler(ev: KeyboardEvent) {
-    if (ev.key === 'Escape' || (ev.ctrlKey && ev.key === 'c')) {
+    if (ev.key === 'Escape' || (ev.ctrlKey && ['c', '/'].includes(ev.key))) {
       ev.preventDefault();
       ev.stopImmediatePropagation();
 

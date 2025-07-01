@@ -371,6 +371,16 @@ function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
 
       return;
     }
+
+    case '/': {
+      if (!evCtrlKey) {
+        break;
+      }
+
+      openInformationDialog();
+
+      return;
+    }
     default:
       break;
   }
@@ -647,6 +657,13 @@ function toggleDocumentKeydownHandler(action: 'add' | 'remove') {
   }
 }
 
+function openInformationDialog() {
+  return import('./help.js').then((help) => {
+    toggleDocumentKeydownHandler('remove');
+    help.showHelp(() => toggleDocumentKeydownHandler('add'));
+  });
+}
+
 readBookmarksAndTabsData().then(filterList);
 
 const gInput = document.getElementById('searchBox') as HTMLInputElement;
@@ -667,10 +684,7 @@ const gSearchResults = document.querySelector('.searchResults ul') as HTMLUListE
 
   gSearchResults.addEventListener('click', listClickHandler);
 
-  document.getElementById('showHelpBtn')!.addEventListener('click', () => {
-    import('./help.js').then((help) => {
-      toggleDocumentKeydownHandler('remove');
-      help.showHelp(() => toggleDocumentKeydownHandler('add'));
-    });
-  });
+  document
+    .getElementById('showHelpBtn')!
+    .addEventListener('click', openInformationDialog);
 })();
