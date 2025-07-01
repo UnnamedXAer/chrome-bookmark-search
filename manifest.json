@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Bookmarks & Tabs Search",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Extension for keyboard focused users to easily switch tabs or open bookmarks. Use Ctrl+M to open (Extensions / Keyboard Shortcuts).",
   "author": "UnnamedXAer",
-  "minimum_chrome_version": "110",
+  "minimum_chrome_version": "135",
   "permissions": ["bookmarks", "tabs"],
   "background": {
     "service_worker": "src/service-worker.js"
