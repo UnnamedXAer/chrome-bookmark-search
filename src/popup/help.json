@@ -10,7 +10,7 @@
     "Page Up/Down": "Move selection by one page up/down.",
     "Ctrl + Home/End": "Jump to the first/last row.",
     "Ctrl + w": "Close selected tab.",
-    "Alt + c": "Mark selected tab to be closed if it will be the target. It will close the existing tab and open url in current/new tab base on used combination."
+    "Ctrl + x": "Mark tab to be closed. If target tab is marked, it will be closed and url opened in new tab/window or current tab base on key combination."
   },
   "shortcutsStandardWithVimLike": {
     "Ctrl + c": "<same as Esc>",

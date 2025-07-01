@@ -128,6 +128,7 @@ function filterList() {
     li.classList.add('result-item', item.type);
     li.classList.add(item.type);
     li.setAttribute('data-url', item.url);
+
     if (searchTextLen > 0) {
       let prevTextEnd = 0;
       const titleLower = item.title.toLowerCase();
@@ -152,6 +153,7 @@ function filterList() {
     } else {
       li.textContent = item.title;
     }
+
     if (item.type === 't' && item.id !== void 0) {
       li.setAttribute('data-tabId', item.id.toString());
       if (item.currentActive) {
@@ -190,21 +192,25 @@ async function openUrl(url: string, tabId?: number, config: OpenUrlConfig = {}) 
     await openUrlInCurrentTab(url);
   }
 
+  closeMarkedTabs();
+
   return window.close();
 }
 
-async function focusOnTab(tabId: number) {
-  const tab = await chrome.tabs.update(tabId, {
-    active: true
-  });
+function focusOnTab(tabId: number) {
+  return chrome.tabs
+    .update(tabId, {
+      active: true
+    })
+    .then((tab) => {
+      if (!tab) {
+        return;
+      }
 
-  if (!tab) {
-    return;
-  }
-
-  return chrome.windows.update(tab.windowId, {
-    focused: true
-  });
+      return chrome.windows.update(tab.windowId, {
+        focused: true
+      });
+    });
 }
 
 function openUrlInCurrentTab(url: string) {
@@ -294,6 +300,11 @@ function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
   const { key: evKey, altKey: evAltKey, ctrlKey: evCtrlKey, shiftKey: evShiftKey } = ev;
 
   switch (evKey) {
+    case 'Alt': {
+      ev.preventDefault();
+
+      return;
+    }
     case 'Enter': {
       searchBoxItemSelected(ev);
 
@@ -304,8 +315,8 @@ function handleSearchBoxKeydownInStandardMode(ev: KeyboardEvent) {
 
       return;
     }
-    case 'c': {
-      if (!evAltKey) {
+    case 'x': {
+      if (!evCtrlKey) {
         break;
       }
 
@@ -385,13 +396,16 @@ function getOpenUrlConfig(ev: EventMetaKeys, keyboardMode: KeyboardMode): OpenUr
   };
 }
 
-function searchBoxItemSelected(ev: EventMetaKeys) {
+function searchBoxItemSelected(ev: EventMetaKeys & { key: KeyboardEvent['key'] }) {
   const li = gSearchResults.querySelector('li.active');
   if (!(li instanceof HTMLLIElement)) {
     return;
   }
 
-  const openUrlConfig = getOpenUrlConfig(ev, gKeyboardMode);
+  const openUrlConfig = getOpenUrlConfig(
+    ev,
+    ev.key === 'Enter' ? KEYBOARD_MODE.standard : gKeyboardMode
+  );
 
   itemSelected(li, openUrlConfig);
 }
@@ -400,18 +414,16 @@ function searchBoxClearOrCancel(
   ev: Pick<Event, 'preventDefault'>,
   input: HTMLInputElement
 ) {
+  ev.preventDefault();
+
   if (input.value) {
     input.focus();
     input.value = '';
     searchBoxInputHandler();
-    ev.preventDefault();
     return;
   }
 
-  if (gKeyboardMode === KEYBOARD_MODE.standardWithVimLike) {
-    ev.preventDefault();
-    window.close();
-  }
+  window.close();
 }
 
 function searchResultsMovePageUpDown(
@@ -532,33 +544,26 @@ function searchResultsMoveUpDown(
   setActiveLI(newActiveElement, 'center');
 }
 
-async function closeTabIfNotCurrent(tabId?: number) {
+function closeTabIfNotCurrent(tabId?: number) {
   if (!tabId) {
     return;
   }
-  try {
-    const [currentTab] = await chrome.tabs.query({
+
+  return chrome.tabs
+    .query({
       active: true,
       lastFocusedWindow: true
-    });
+    })
+    .then(([currentTab]) => {
+      // const li = gSearchResults.querySelector<HTMLLIElement>('li.active.currTab');
 
-    const li = gSearchResults.querySelector<HTMLLIElement>('li.active.currTab');
-    const activeTabId = li ? getTabIdFromLI(li) : void 0;
-    if (currentTab.id !== activeTabId) {
-      debugger;
-      throw Error(
-        'API returned different active tab: ' + currentTab.id + ' != ' + activeTabId
-      );
-    }
+      if (currentTab && currentTab.id === tabId) {
+        return;
+      }
 
-    if (currentTab && currentTab.id === tabId) {
-      return;
-    }
-
-    await chrome.tabs.remove(tabId);
-  } catch (err) {
-    console.log({ closeTabIfNotCurrent: err });
-  }
+      return chrome.tabs.remove(tabId);
+    })
+    .catch((err) => console.log('closeTabIfNotCurrent', err));
 }
 
 async function closeTabAndSetClosestActive(li: HTMLLIElement) {
@@ -570,7 +575,7 @@ async function closeTabAndSetClosestActive(li: HTMLLIElement) {
   try {
     await chrome.tabs.remove(tabId);
   } catch (err) {
-    console.log({ err });
+    console.log(err);
     return;
   }
 
@@ -599,46 +604,40 @@ function getTabIdFromLI(li: HTMLLIElement): number | undefined {
   return +dataTabId;
 }
 
-function itemSelected(li: HTMLLIElement, config: OpenUrlConfig) {
-  const url = li.getAttribute('data-url')!;
-  // TODO: that doesn't work because we get empty string if attribute is present
-  // additionally we should use querySelector to get all active elements
-  // and close them all or do not allow to mark more than one tab for closing
+function itemSelected(targetTab: HTMLLIElement, config: OpenUrlConfig) {
+  const url = targetTab.getAttribute('data-url')!;
 
-  // const closeTab = li.getAttribute('data-close-tab') !== null;
-  // const isCurrentTab = li.classList.contains('currTab');
-  let tabId = getTabIdFromLI(li);
+  const closeTargetTab = targetTab.getAttribute('data-close-tab') !== null;
+  let tabId = getTabIdFromLI(targetTab);
+  const currTab = gSearchResults.querySelector('li.t.currTab');
 
-  // if (closeTab) {
-  //   if ( || (!config.newTab && !config.newWindow)) {
-
-  //     gSearchResults
-  //       .querySelector<HTMLLIElement>('li.t.currTab')
-  //       ?.removeAttribute('data-close-tab');
-
-  //   } else {
-  //     tabId = void 0;
-  //   }
-  // }
-
-  // closeMarkedTabs();
+  if (config.forceInCurrentTab) {
+    currTab?.removeAttribute('data-close-tab');
+  } else {
+    if (closeTargetTab) {
+      tabId = void 0;
+      if (!config.newTab) {
+        config.newTab = true;
+      }
+    }
+  }
 
   return openUrl(url, tabId, config);
 }
 
-// function closeMarkedTabs() {
-//   const markedToClose =
-//     gSearchResults.querySelectorAll<HTMLLIElement>('li[data-close-tab]');
+function closeMarkedTabs() {
+  const markedToClose =
+    gSearchResults.querySelectorAll<HTMLLIElement>('li[data-close-tab]');
 
-//   [...markedToClose].forEach((li) => {
-//     let tabId = getTabIdFromLI(li);
-//     if (tabId) {
-//       chrome.tabs.remove(tabId).catch((err) => {
-//         console.log({ err });
-//       });
-//     }
-//   });
-// }
+  [...markedToClose].forEach((li) => {
+    let tabId = getTabIdFromLI(li);
+    if (tabId) {
+      chrome.tabs.remove(tabId).catch((err) => {
+        console.log({ err });
+      });
+    }
+  });
+}
 
 function toggleDocumentKeydownHandler(action: 'add' | 'remove') {
   if (action === 'add') {

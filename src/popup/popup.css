@@ -193,6 +193,7 @@ main {
   option {
     background-color: var(--bg-color);
     color: var(--fg-color);
+    font: inherit;
   }
 
   label:not(:last-of-type) {
